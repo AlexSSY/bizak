@@ -1,3 +1,4 @@
 .conda
 .pytest_cache
 *.sqlite3
+__pycache__
