@@ -17,7 +17,7 @@ class User(Base):
     password = Column(String(length=200))
 
 
-class AdminModel:
+class ModelAdmin:
     def __init__(self, model: SQLAlchemyModel):
         self.model = model
 
@@ -25,28 +25,75 @@ class AdminModel:
         return session.query(self.model)
     
     def get_name(self) -> str:
-        return self.model.__name__
+        return self.model.__class__.__name__
     
     def get_name_plural(self) -> str:
-        return self.model.__name__
+        return self.model.__class__.__name__
     
-    def get_list_display(self) -> Optional[list[str] | Literal['__all__']]:
-        return '__all__'
+    list_display = '__all__'
 
 
-admin_model_storage: dict[SQLAlchemyModel, AdminModel] = dict()
+class ModelAdminRegistry:
+    admin_model_storage: dict[SQLAlchemyModel, ModelAdmin] = dict()
+
+    @classmethod
+    def register(cls, model: SQLAlchemyModel, model_admin_class: ModelAdmin):
+        cls.admin_model_storage[model] = model_admin_class
+
+    @classmethod
+    def get_instance(cls, model: SQLAlchemyModel) -> ModelAdmin:
+        model_admin_class = cls.admin_model_storage.get(model)
+        if model_admin_class == None:
+            raise ValueError(f'model: {model} is not registered in AdminModelRegistry')
+        return model_admin_class(model)
 
 
-class AdminModelMetadata:
-    pass
+class UserAdmin(ModelAdmin):
+    def get_id_display(self):
+        return 'ID'
+    
+    list_display = ['id', 'username']
 
 
 if __name__ == '__main__':
-    create_all_tables()
-
     from pprint import pprint
-    inspected_model = inspect(User)
-    columns = inspected_model.columns
+    create_all_tables()
+    ModelAdminRegistry.register(User, UserAdmin)
 
-    for c in columns:
-        pprint(c)
+    inspected_model = inspect(User)
+    sql_columns = inspected_model.columns
+    model_admin = ModelAdminRegistry.get_instance(User)
+    model_admin_name = model_admin.__class__.__name__
+
+    ma_list_display = model_admin.list_display
+
+    ctx_column_names: list[str] = list()
+
+    def customize_column(c):
+        get_column_display = getattr(model_admin, f'get_{c.name}_display', None)
+        if get_column_display:
+            ctx_column_names.append(get_column_display())
+        else:
+            ctx_column_names.append(c.name)
+
+    for c in sql_columns:
+        # check if column name in the list_display
+        if isinstance(ma_list_display, str):
+            if ma_list_display != '__all__':
+                error_msg = f'The get_list_display method of a {model_admin_name} - invalid'
+                raise ValueError(error_msg)
+            else:
+                customize_column(c)
+        elif isinstance(ma_list_display, list):
+            if len(ma_list_display) == 0:
+                error_msg = f'The get_list_display method of a {model_admin_name} returns empty list'
+                raise ValueError(error_msg)
+            else:
+                if c.name not in ma_list_display:
+                    continue
+                customize_column(c)
+        else:
+            error_msg = f'The get_list_display method of a {model_admin_name} must return list or str'
+            raise ValueError(error_msg)
+
+    pprint(ctx_column_names)
