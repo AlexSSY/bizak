@@ -2,6 +2,8 @@ import os
 import pytest
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.orm import sessionmaker, declarative_base
+from admin.model import ModelAdmin
+from datetime import datetime
 
 
 DB_FILE_NAME = 'test.sqlite3'
@@ -10,13 +12,20 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 Base = declarative_base()
 
 
-class Flower(Base):
+class TimestampMixin:
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
+
+
+class Flower(Base, TimestampMixin):
     __tablename__ = 'flowers'
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
     color = Column(String)
-    
-    created_at = Column(DateTime)
+
+
+class FlowerAdmin(ModelAdmin):
+    pass
 
 
 def db_prep():
@@ -28,9 +37,18 @@ def db_prep():
     Base.metadata.create_all(bind=engine)
 
     with SessionLocal() as session:
-        for i in range(8):
-            user = User(username=f"username_{i}", password=f"password_{i}")
-            session.add(user)
+        session.add(Flower(name='Роза', color='красный'))
+        session.add(Flower(name='Лилия', color='жовтый'))
+        session.add(Flower(name='Ласточкина трава', color='белый'))
+        session.add(Flower(name='Крижовник', color='черный'))
+        session.add(Flower(name='Сирень', color='синий'))
+        session.add(Flower(name='Мышехвост', color='белый'))
+        session.add(Flower(name='Двоегрот', color='красный'))
+        session.add(Flower(name='Себачая петрушка', color='белый'))
+        session.add(Flower(name='Драконий корень', color='красный'))
+        session.add(Flower(name='Омела', color='белый'))
+        session.add(Flower(name='Хмель', color='белый'))
+        session.add(Flower(name='Чертополох', color='желтый'))
         session.commit()
 
 db_prep()
