@@ -9,8 +9,12 @@ def test_model_admin_class(fake_db):
 
     view_context = instance.index_view(None, fake_db)
     columns = view_context.get('columns')
-    assert columns
+    assert columns != None
     assert columns[0] == 'ID'
     assert columns[1] == 'username'
     assert columns[2] == 'password'
     assert columns[3] == 'Custom'
+    records = view_context.get('records')
+    assert records != None
+    assert len(records) == 8
+    assert len(records[0]) == 4

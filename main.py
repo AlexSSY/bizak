@@ -1,6 +1,7 @@
 from app.db import SessionLocal
 from admin.model import ModelAdminRegistry
-from app.model import User, create_all_tables
+from app.model import User
+from app.db import create_all_tables
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, String
 from fastapi import Request
 from admin.model import ModelAdmin, ModelAdminRegistry
 
-from .db import Base, create_all_tables
+from .db import Base
 
 
 class User(Base):
