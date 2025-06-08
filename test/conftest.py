@@ -1,15 +1,22 @@
 import os
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-
-from app.db import Base
-from app.model import User
+from sqlalchemy import create_engine, Column, Integer, String, DateTime
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 
 DB_FILE_NAME = 'test.sqlite3'
 engine = create_engine(f'sqlite:///{DB_FILE_NAME}')
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+Base = declarative_base()
+
+
+class Flower(Base):
+    __tablename__ = 'flowers'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
+    color = Column(String)
+    
+    created_at = Column(DateTime)
 
 
 def db_prep():

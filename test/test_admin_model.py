@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from app.model import User, UserAdmin
 from admin.model import ModelAdmin
+from conftest import Base
 
 
 def test_model_admin_class(fake_db):
@@ -18,3 +19,6 @@ def test_model_admin_class(fake_db):
     assert records != None
     assert len(records) == 8
     assert len(records[0]) == 4
+
+def test_search_by_username(fake_db):
+    instance = User
