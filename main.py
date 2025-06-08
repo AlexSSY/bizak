@@ -16,8 +16,13 @@ class User(Base):
 
 
 class UserAdmin(ModelAdmin):
-    def get_id_display(self):
-        return 'ID'
+    def get_id_display(self, obj):
+        return obj.id
+    get_id_display.display = 'ID'
+
+    def get_custom_display(self, obj):
+        return obj.__class__.__name__
+    get_custom_display.display = 'Cat pet'
     
     list_display = ['id', 'username']
 

@@ -7,6 +7,8 @@ from .types import SQLAlchemyModel
 
 @dataclass
 class IndexList:
+    """Retrieve's records from DB to template context."""
+
     request: Request
     model: SQLAlchemyModel
     queryset: Query
@@ -19,6 +21,7 @@ class IndexList:
 
     def get_context(self) -> dict:
         records = self.queryset.limit(self.limit).offset(self.offset).all()
+        
         return {
             'records': records
         }

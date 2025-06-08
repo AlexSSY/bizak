@@ -1,3 +1,5 @@
+from typing import Optional
+from types import MethodType
 from sqlalchemy import inspect
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session
@@ -9,6 +11,7 @@ from .index_list import IndexList
 class ModelAdmin:
     def __init__(self, model: SQLAlchemyModel):
         self.model = model
+        self.name = self.__class__.__name__
 
     def get_queryset(self, request: Request, session: Session) -> Query:
         return session.query(self.model)
@@ -19,46 +22,65 @@ class ModelAdmin:
     def get_name_plural(self) -> str:
         return self.model.__class__.__name__
     
-    def index_view(self, request: Request, session: Session) -> dict:
-        inspected_model = inspect(self.model)
-        sql_columns = inspected_model.columns
-        name = self.__class__.__name__
+    def _display_columns(self) -> list[str]:
+        if isinstance(self.list_display, str):
+            if self.list_display != '__all__':
+                error_msg = f'The list_display attribute of a {self.name} - invalid'
+                raise ValueError(error_msg)
+            else:
+                inspected_model = inspect(self.model)
+                sql_columns = inspected_model.columns
+                return sql_columns
 
+        elif isinstance(self.list_display, list):
+            if len(self.list_display) == 0:
+                error_msg = f'The list_display attribute of a {self.name} - empty list'
+                raise ValueError(error_msg)
+            else:
+                return self.list_display
+                
+        else:
+            error_msg = f'The list_display attribute of a {self.name} must return list or str'
+            raise ValueError(error_msg)
+    
+    def index_view(self, request: Request, session: Session) -> dict:
         ctx_columns = list()
 
-        def customize_column(column):
-            get_column_display = getattr(self, f'get_{column.name}_display', None)
-            if get_column_display:
-                ctx_columns.append(get_column_display())
-            else:
-                ctx_columns.append(column.name)
+        columns_to_display = self._display_columns()
+
+        def display_methods():
+            for column in columns_to_display:
+                column_display_method = getattr(self, f'get_{column}_display', None)
+                display = getattr(column_display_method, 'display', None)
+                if column_display_method:
+                    yield display or column
+                else:
+                    if column in sql_columns:
+                        def display_method(self, obj):
+                            return getattr(obj, 'column')
+                        display_method.display = column
+                        bound_display_method = MethodType(display_method, self)
+                        setattr(self, f'get_{column}_display', bound_display_method)
+                        yield column
+                    else:
+                        error_msg = f'column {column} not in DB table.'
+                        raise ValueError(error_msg)
                 
         for column in sql_columns:
-            # check if column name in the list_display
-            if isinstance(self.list_display, str):
-                if self.list_display != '__all__':
-                    error_msg = f'The get_list_display method of a {name} - invalid'
-                    raise ValueError(error_msg)
-                else:
-                    customize_column(column)
-
-            elif isinstance(self.list_display, list):
-                if len(self.list_display) == 0:
-                    error_msg = f'The get_list_display method of a {name} returns empty list'
-                    raise ValueError(error_msg)
-                else:
-                    if column.name not in self.list_display:
-                        continue
-                    customize_column(column)
-                    
-            else:
-                error_msg = f'The get_list_display method of a {name} must return list or str'
-                raise ValueError(error_msg)
+            pass
             
         index_list = IndexList(request, self.model, self.get_queryset(request, session), [])
         
         return {
             'columns': ctx_columns,
+            '_columns': [
+                {'db_name': 'id', 'display': 'ID'},
+                {'db_name': None, 'display': 'custom'},
+            ],
+            '_records': [
+                [1, 'spagetti'],
+                [2, 'buret'],
+            ],
             'records': index_list.get_context()['records']
         }
 
