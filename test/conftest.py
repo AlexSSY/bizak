@@ -1,28 +1,28 @@
 import os
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 
-from ..main import User, Base
-from db import SessionLocal
+from app.db import Base
+from app.model import User
 
 
-DB_FILE_NAME = 'test.sqlite3'
+DB_FILE_NAME = '/test.sqlite3'
+engine = create_engine(f'sqlite://{DB_FILE_NAME}')
+SessionLocal: Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
 def db_prep():
-    db_file_path  = f'/{DB_FILE_NAME}'
+    db_file_path  = DB_FILE_NAME
     
     if os.path.exists(db_file_path):
         os.remove(db_file_path)
 
-    engine = create_engine(f'sqlite://{db_file_path}')
-    global SessionLocal
-    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     Base.metadata.create_all(bind=engine)
 
+db_prep()
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture
 def fake_db():
     db = SessionLocal()
 

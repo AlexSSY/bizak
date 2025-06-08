@@ -4,6 +4,7 @@ from sqlalchemy import inspect
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session
 from fastapi import Request
+
 from .types import SQLAlchemyModel
 from .index_list import IndexList
 
@@ -48,7 +49,7 @@ class ModelAdmin:
             error_msg = f'The list_display attribute of a {self.name} must return list or str'
             raise ValueError(error_msg)
     
-    def _generate_display_method(self, column):
+    def _generate_display_func(self, column):
         def generated_display_method(self, obj):
                 return getattr(obj, f'{column}')
         yield generated_display_method
@@ -63,11 +64,13 @@ class ModelAdmin:
             display_method = getattr(self, f'get_{column}_display', None)
 
             if display_method:
+                if not hasattr(display_method.__func__, 'display'):
+                    setattr(display_method.__func__, 'display', column)
                 display_methods.append(display_method)
             elif column in sql_columns:
-                generated_display_method = next(self._generate_display_method(column))
-                generated_display_method.display = column
-                bound_generated_display_method = MethodType(generated_display_method, self)
+                generated_display_func = next(self._generate_display_func(column))
+                generated_display_func.display = column
+                bound_generated_display_method = MethodType(generated_display_func, self)
                 setattr(self, f'get_{column}_display', bound_generated_display_method)
                 display_methods.append(bound_generated_display_method)
             else:
