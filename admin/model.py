@@ -1,10 +1,9 @@
 from sqlalchemy import inspect
-from sqlalchemy.orm import DeclarativeMeta, Query
+from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session
 from fastapi import Request
-
-
-SQLAlchemyModel = DeclarativeMeta
+from .types import SQLAlchemyModel
+from .index_list import IndexList
 
 
 class ModelAdmin:
@@ -20,7 +19,7 @@ class ModelAdmin:
     def get_name_plural(self) -> str:
         return self.model.__class__.__name__
     
-    def index_view(self) -> dict:
+    def index_view(self, request: Request, session: Session) -> dict:
         inspected_model = inspect(self.model)
         sql_columns = inspected_model.columns
         name = self.__class__.__name__
@@ -42,6 +41,7 @@ class ModelAdmin:
                     raise ValueError(error_msg)
                 else:
                     customize_column(column)
+
             elif isinstance(self.list_display, list):
                 if len(self.list_display) == 0:
                     error_msg = f'The get_list_display method of a {name} returns empty list'
@@ -50,12 +50,16 @@ class ModelAdmin:
                     if column.name not in self.list_display:
                         continue
                     customize_column(column)
+                    
             else:
                 error_msg = f'The get_list_display method of a {name} must return list or str'
                 raise ValueError(error_msg)
             
+        index_list = IndexList(request, self.model, self.get_queryset(request, session), [])
+        
         return {
-            'columns': ctx_columns
+            'columns': ctx_columns,
+            'records': index_list.get_context()['records']
         }
 
     

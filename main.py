@@ -5,7 +5,7 @@ from sqlalchemy.orm import Query, Session
 from fastapi import Request
 from admin.model import ModelAdmin, ModelAdminRegistry
 
-from db import Base, create_all_tables
+from db import Base, create_all_tables, SessionLocal
 
 
 class User(Base):
@@ -27,4 +27,5 @@ if __name__ == '__main__':
     create_all_tables()
     ModelAdminRegistry.register(User, UserAdmin)
 
-    pprint(ModelAdminRegistry.get_instance(User).index_view())
+    with SessionLocal() as session:
+        pprint(ModelAdminRegistry.get_instance(User).index_view(None, session))
