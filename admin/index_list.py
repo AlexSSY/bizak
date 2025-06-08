@@ -19,9 +19,6 @@ class IndexList:
     order: Optional[str] = None
     order_type: Optional[str] = None
 
-    def get_context(self) -> dict:
+    def get_records(self) -> list:
         records = self.queryset.limit(self.limit).offset(self.offset).all()
-        
-        return {
-            'records': records
-        }
+        return records

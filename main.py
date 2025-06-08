@@ -20,11 +20,14 @@ class UserAdmin(ModelAdmin):
         return obj.id
     get_id_display.display = 'ID'
 
+    def get_username_display(self, obj):
+        return obj.username.upper()
+
     def get_custom_display(self, obj):
-        return obj.__class__.__name__
-    get_custom_display.display = 'Cat pet'
+        return f'custom field value for class: "{obj.__class__.__name__}"'
+    get_custom_display.display = 'Custom'
     
-    list_display = ['id', 'username']
+    list_display = ['id', 'username', 'password', 'custom']
 
 
 if __name__ == '__main__':

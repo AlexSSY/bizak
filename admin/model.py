@@ -22,15 +22,20 @@ class ModelAdmin:
     def get_name_plural(self) -> str:
         return self.model.__class__.__name__
     
+    def _sql_columns(self) -> list[str]:
+        inspected_model = inspect(self.model)
+        return list([k.name for k in inspected_model.columns])
+    
     def _display_columns(self) -> list[str]:
+        """Returns actual list of list_display"""
+
         if isinstance(self.list_display, str):
             if self.list_display != '__all__':
                 error_msg = f'The list_display attribute of a {self.name} - invalid'
                 raise ValueError(error_msg)
+            
             else:
-                inspected_model = inspect(self.model)
-                sql_columns = inspected_model.columns
-                return sql_columns
+                return self._sql_columns()
 
         elif isinstance(self.list_display, list):
             if len(self.list_display) == 0:
@@ -43,47 +48,49 @@ class ModelAdmin:
             error_msg = f'The list_display attribute of a {self.name} must return list or str'
             raise ValueError(error_msg)
     
-    def index_view(self, request: Request, session: Session) -> dict:
-        ctx_columns = list()
+    def _generate_display_method(self, column):
+        def generated_display_method(self, obj):
+                return getattr(obj, f'{column}')
+        yield generated_display_method
 
-        columns_to_display = self._display_columns()
 
-        def display_methods():
-            for column in columns_to_display:
-                column_display_method = getattr(self, f'get_{column}_display', None)
-                display = getattr(column_display_method, 'display', None)
-                if column_display_method:
-                    yield display or column
-                else:
-                    if column in sql_columns:
-                        def display_method(self, obj):
-                            return getattr(obj, 'column')
-                        display_method.display = column
-                        bound_display_method = MethodType(display_method, self)
-                        setattr(self, f'get_{column}_display', bound_display_method)
-                        yield column
-                    else:
-                        error_msg = f'column {column} not in DB table.'
-                        raise ValueError(error_msg)
-                
-        for column in sql_columns:
-            pass
-            
-        index_list = IndexList(request, self.model, self.get_queryset(request, session), [])
+    def _display_methods(self):
+        display_methods = []
+        sql_columns = self._sql_columns()
+        display_columns = self._display_columns()
         
-        return {
-            'columns': ctx_columns,
-            '_columns': [
-                {'db_name': 'id', 'display': 'ID'},
-                {'db_name': None, 'display': 'custom'},
-            ],
-            '_records': [
-                [1, 'spagetti'],
-                [2, 'buret'],
-            ],
-            'records': index_list.get_context()['records']
-        }
+        for column in display_columns:
+            display_method = getattr(self, f'get_{column}_display', None)
 
+            if display_method:
+                display_methods.append(display_method)
+            elif column in sql_columns:
+                generated_display_method = next(self._generate_display_method(column))
+                generated_display_method.display = column
+                bound_generated_display_method = MethodType(generated_display_method, self)
+                setattr(self, f'get_{column}_display', bound_generated_display_method)
+                display_methods.append(bound_generated_display_method)
+            else:
+                error_msg = f'column {column} not in DB table.'
+                raise ValueError(error_msg)
+                
+        return display_methods
+    
+    
+    def index_view(self, request: Request, session: Session) -> dict:
+        display_methods = self._display_methods()
+        db_records = IndexList(request, self.model, self.get_queryset(request, session), []).get_records()
+        records = []
+        for db_record in db_records:
+            values = []
+            for display_method in display_methods:
+                values.append(display_method(db_record))
+            records.append(values)
+
+        return {
+            'columns': list([c.display for c in display_methods]),
+            'records': records,
+        }
     
     list_display = '__all__'
     fields = '__all__'
