@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime
-from fastapi import Request
 from admin.model import ModelAdmin, ModelAdminRegistry, display
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema, auto_field
 
 from .db import Base
 
@@ -11,6 +11,11 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(length=100), unique=True)
     password = Column(String(length=200))
+
+
+class UserSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = User
 
 
 class UserAdmin(ModelAdmin):
