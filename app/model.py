@@ -19,7 +19,8 @@ class UserAdmin(ModelAdmin):
     get_id_display.display = 'ID'
 
     def get_username_display(self, obj):
-        return obj.username.upper()
+        return obj.username
+    get_username_display.display = 'UserName'
 
     def get_custom_display(self, obj):
         return f'custom field value for class: "{obj.__class__.__name__}"'

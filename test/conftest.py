@@ -2,14 +2,10 @@ import os
 import pytest
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.orm import sessionmaker, declarative_base
-from admin.model import ModelAdmin
+from admin.model import ModelAdmin, ModelAdminRegistry
 from datetime import datetime
-
-
-DB_FILE_NAME = 'test.sqlite3'
-engine = create_engine(f'sqlite:///{DB_FILE_NAME}')
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-Base = declarative_base()
+from fastapi.testclient import TestClient
+from .db import Base, SessionLocal, engine
 
 
 class TimestampMixin:
@@ -25,16 +21,19 @@ class Flower(Base, TimestampMixin):
 
 
 class FlowerAdmin(ModelAdmin):
-    search_columns = ['name']
+    search_columns = ['name', 'color']
+
+
+ModelAdminRegistry.register(Flower, FlowerAdmin)
 
 
 def db_prep():
-    db_file_path  = DB_FILE_NAME
+    # db_file_path  = DB_FILE_NAME
     
-    if os.path.exists(db_file_path):
-        os.remove(db_file_path)
+    # if os.path.exists(db_file_path):
+    #     os.remove(db_file_path)
 
-    Base.metadata.create_all(bind=engine)
+    # Base.metadata.create_all(bind=engine)
 
     with SessionLocal() as session:
         session.add(Flower(name='Роза', color='красный'))
@@ -53,11 +52,19 @@ def db_prep():
 
 db_prep()
 
-@pytest.fixture
-def fake_db():
+@pytest.fixture(scope="function")
+def db():
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
-
     try:
         yield db
     finally:
         db.close()
+
+@pytest.fixture(scope="function")
+def client(db: Session):
+    def override_get_db():
+        yield db
+    app.dependency_overrides[app.get_db] = override_get_db
+    return TestClient(app)
