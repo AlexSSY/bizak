@@ -3,7 +3,6 @@ from .conftest import Flower, FlowerAdmin
 
 def test_model_admin_class(fake_db):
     instance = FlowerAdmin(Flower)
-    assert instance != None
 
     view_context = instance.index_view(None, fake_db)
     columns = view_context.get('columns')
@@ -18,6 +17,6 @@ def test_model_admin_class(fake_db):
     # assert len(records) == 8
     # assert len(records[0]) == 4
 
-def test_search_by_username(fake_db):
-    # instance = User
-    ...
+def test_search(fake_db):
+    instance = FlowerAdmin(Flower)
+    assert instance != None

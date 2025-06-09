@@ -25,7 +25,7 @@ class Flower(Base, TimestampMixin):
 
 
 class FlowerAdmin(ModelAdmin):
-    pass
+    search_columns = ['name']
 
 
 def db_prep():

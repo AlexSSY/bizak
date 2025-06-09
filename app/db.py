@@ -9,3 +9,11 @@ Base: DeclarativeMeta = declarative_base()
 
 def create_all_tables():
     Base.metadata.create_all(bind=engine)
+
+
+def get_db():
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()

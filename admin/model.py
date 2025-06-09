@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Protocol
 from types import MethodType
 from sqlalchemy import inspect
 from sqlalchemy.orm import Query
@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from fastapi import Request
 
 from .types import SQLAlchemyModel
-from .index_list import IndexList
+from .index_list import index_list
 
 
 class ModelAdmin:
@@ -59,6 +59,7 @@ class ModelAdmin:
         display_methods = []
         sql_columns = self._sql_columns()
         display_columns = self._display_columns()
+        search_columns = []
         
         for column in display_columns:
             display_method = getattr(self, f'get_{column}_display', None)
@@ -82,7 +83,20 @@ class ModelAdmin:
     
     def index_view(self, request: Request, session: Session) -> dict:
         display_methods = self._display_methods()
-        db_records = IndexList(request, self.model, self.get_queryset(request, session), []).get_records()
+
+        offset = request.query_params.get('offset', default=0)
+        limit = request.query_params.get('limit', default=8)
+        search = request.query_params.get('search', default=None)
+
+        db_records = index_list(
+            request=request,
+            model=self.model,
+            queryset=self.get_queryset(request, session),
+            column_names=self.search_columns,
+            offset=offset,
+            limit=limit,
+            search=search
+        )
         records = []
         for db_record in db_records:
             values = []
@@ -98,6 +112,7 @@ class ModelAdmin:
     list_display = '__all__'
     fields = '__all__'
     exclude_fields = []
+    search_columns = []
 
 
 class ModelAdminRegistry:
@@ -113,3 +128,12 @@ class ModelAdminRegistry:
         if model_admin_class == None:
             raise ValueError(f'model: {model} is not registered in AdminModelRegistry')
         return model_admin_class(model)
+    
+    @classmethod
+    def get_instance_by(cls, model_class_name: str) -> ModelAdmin:
+        result = tuple([(k, v) for k, v in cls.admin_model_storage.items() if k.__name__ == model_class_name])
+        if not result:
+            raise ValueError(f'model: {model_class_name} is not registered in AdminModelRegistry')
+        model_class = result[0][0]
+        model_admin_class = result[0][1]
+        return model_admin_class(model_class)

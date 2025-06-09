@@ -26,6 +26,7 @@ class UserAdmin(ModelAdmin):
     get_custom_display.display = 'Custom'
     
     list_display = ['id', 'username', 'password', 'custom']
+    search_columns = ['username']
 
 
 ModelAdminRegistry.register(User, UserAdmin)
