@@ -1,9 +1,9 @@
 from typing import Annotated
 from sqlalchemy.orm import Session
-from fastapi import FastAPI, Request, Depends, Query
+from fastapi import FastAPI, Request, Depends
 from admin.model import ModelAdminRegistry
+import app.model
 from app.db import get_db
-from app.model import User, UserAdmin
 
 
 app = FastAPI(debug=True)

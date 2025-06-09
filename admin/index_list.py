@@ -1,15 +1,36 @@
 from typing import Optional, Sequence, Any, Dict
 from fastapi import Request
-from sqlalchemy import or_, asc, desc
-from sqlalchemy.orm import Query, Session
+from sqlalchemy import or_, asc, desc, and_
+from sqlalchemy.orm import Query
 from .types import SQLAlchemyModel
+
+
+OPERATORS = {
+    "eq": lambda col, val: col == val,
+    "gt": lambda col, val: col > val,
+    "lt": lambda col, val: col < val,
+    "gte": lambda col, val: col >= val,
+    "lte": lambda col, val: col <= val,
+    "like": lambda col, val: col.like(val),
+    "ilike": lambda col, val: col.ilike(val),
+    "ne": lambda col, val: col != val,
+}
+
+
+def parse_filters(request: Request) -> Dict[str, Any]:
+    filters = {}
+    for key, value in request.query_params.multi_items():
+        if key.startswith("filters[") and key.endswith("]"):
+            actual_key = key[len("filters["):-1]
+            filters[actual_key] = value
+    return filters
 
 
 def index_list(
     request: Request,
-    model: Any,  # SQLAlchemy ORM model class
+    model: SQLAlchemyModel,  # SQLAlchemy ORM model class
     queryset: Query,
-    column_names: Sequence[str],
+    search_column_names: Sequence[str],
     offset: int = 0,
     limit: int = 8,
     search: Optional[str] = None,
@@ -22,16 +43,21 @@ def index_list(
     query = queryset
 
     # Фильтрация по конкретным полям
-    if filters:
-        for field, value in filters.items():
-            if hasattr(model, field):
-                query = query.filter(getattr(model, field) == value)
+    for raw_key, value in filters.items():
+        if "__" in raw_key:
+            field, op = raw_key.split("__", 1)
+        else:
+            field, op = raw_key, "eq"
+
+        if field in model.__table__.columns and op in OPERATORS:
+            column = getattr(model, field)
+            query = query.filter(OPERATORS[op](column, value))
 
     # Поиск по строке (LIKE %search%)
     if search:
         search_clauses = [
             getattr(model, col).ilike(f"%{search}%")
-            for col in column_names
+            for col in search_column_names
             if hasattr(model, col)
         ]
         if search_clauses:

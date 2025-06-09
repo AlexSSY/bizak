@@ -4,12 +4,18 @@ from sqlalchemy import inspect
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session
 from fastapi import Request
+import functools
 
 from .types import SQLAlchemyModel
-from .index_list import index_list
+from .index_list import index_list, parse_filters
 
 
 class ModelAdmin:
+    list_display = '__all__'
+    fields = '__all__'
+    exclude_fields = []
+    search_columns = []
+
     def __init__(self, model: SQLAlchemyModel):
         self.model = model
         self.name = self.__class__.__name__
@@ -86,16 +92,23 @@ class ModelAdmin:
 
         offset = request.query_params.get('offset', default=0)
         limit = request.query_params.get('limit', default=8)
+        limit = max(1, int(limit))
         search = request.query_params.get('search', default=None)
+        order = request.query_params.get('order', default=None)
+        order_type = request.query_params.get('order_type', default='asc')
+        filters = parse_filters(request=request)
 
         db_records = index_list(
             request=request,
             model=self.model,
             queryset=self.get_queryset(request, session),
-            column_names=self.search_columns,
+            search_column_names=self.search_columns,
             offset=offset,
             limit=limit,
-            search=search
+            search=search,
+            order=order,
+            order_type=order_type,
+            filters=filters
         )
         records = []
         for db_record in db_records:
@@ -108,11 +121,19 @@ class ModelAdmin:
             'columns': list([c.display for c in display_methods]),
             'records': records,
         }
-    
-    list_display = '__all__'
-    fields = '__all__'
-    exclude_fields = []
-    search_columns = []
+
+
+def display(**parameters):
+    def decorator(fn):
+        # Назначаем кастомные атрибуты функции
+        for key, val in parameters.items():
+                setattr(fn, key, val)
+
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 class ModelAdminRegistry:
