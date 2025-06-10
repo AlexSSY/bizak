@@ -54,9 +54,22 @@ def form(request: Request):
     form = LoginForm()
     fields = form.fields_html(templating=templating)
     context = {
-        'fields': fields
+        'fields': fields,
+        'method': 'post',
+        'action': '/admin/test/form',
     }
     return templating.TemplateResponse(request=request, name='form.html', context=context)
+
+
+@app.post('/admin/test/form')
+async def post_form(request: Request, session: Annotated[Session, Depends(get_db)]):
+    form_data = await request.form()
+    form = LoginForm()
+    form.validate(form_data=form_data._dict, session=session)
+    return {
+        'data': form.cleaned_data,
+        'errors': {f.name: f.errors for f in form.form_fields}
+    }
 
 
 @app.get('/admin/')

@@ -6,3 +6,6 @@
   value="{{ old_values[name] }}"
   {% if required %}required{% endif %}
 >
+{% if errors %}
+<span class="text-danger d-block">this field has errors</span>
+{% endif %}
