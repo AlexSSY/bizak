@@ -32,6 +32,7 @@ class Post(Base, TimestampMixin):
 class UserSchema(SQLAlchemyAutoSchema):
     class Meta:
         model = User
+        relationship=True
 
     posts = auto_field()
 

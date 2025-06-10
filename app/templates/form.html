@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<div class="vh-100 d-flex justify-center items-center">
+  <form method="{{ method }}" action="{{ action }}" class="m-auto" style="width: 720px;">
+    {% for field in fields %}
+      <div class="form-group mb-3">
+        {{ field | safe }}
+      </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary">Submit</button>
+  </form>
+</div>
+{% endblock %}
