@@ -44,7 +44,6 @@ def new(request: Request, model: str, session: Annotated[Session, Depends(get_db
         'method': 'post',
         'action': f'/{model}/create',
         "fields": fields,
-        "old": {},
     }
     return templating.TemplateResponse(request=request, name='add.html', context=context)
 
@@ -65,11 +64,17 @@ def form(request: Request):
 async def post_form(request: Request, session: Annotated[Session, Depends(get_db)]):
     form_data = await request.form()
     form = LoginForm()
-    form.validate(form_data=form_data._dict, session=session)
-    return {
-        'data': form.cleaned_data,
-        'errors': {f.name: f.errors for f in form.form_fields}
-    }
+    form.validate(form_data=form_data, session=session)
+    if form.valid:
+        return form.cleaned_data
+    else:
+        fields = form.fields_html(templating=templating, old_values=form_data)
+        context = {
+            'fields': fields,
+            'method': 'post',
+            'action': '/admin/test/form',
+        }
+        return templating.TemplateResponse(request=request, name='form.html', context=context)
 
 
 @app.get('/admin/')

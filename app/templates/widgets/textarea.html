@@ -4,17 +4,15 @@
 {% if errors %}
 <div class="input-group has-validation">
 {% endif %}
-  <input
+  <textarea
     class="{{ widget.class_ }}{% if errors %} is-invalid{% endif %}"
     type="{{ type }}"
     name="{{ name }}"
+    rows="{{ widget.rows }}"
     id="{{ name }}"
-    {% if old_value and shared %}
-    value="{{ old_value }}"
-    {% endif %}
     {% if required %}required{% endif %}
     {% if errors %}aria-describedby="inputGroupPrepend3 validation{{ name }}Feedback"{% endif %}
-  >
+  >{% if old_value and shared %}{{ old_value }}{% endif %}</textarea>
 {% if errors %}
   <div id="validation{{ name }}Feedback" class="invalid-feedback">
     {{ errors[0] }}
