@@ -1,9 +1,15 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
+from sqlalchemy.orm import relationship
 from admin.model import ModelAdmin, ModelAdminRegistry, display
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema, auto_field
 
-from .db import Base
+from .db import Base, engine
+
+
+class TimestampMixin:
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
 
 
 class User(Base):
@@ -11,11 +17,23 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(length=100), unique=True)
     password = Column(String(length=200))
+    posts = relationship('Post', back_populates='author')
+
+
+class Post(Base, TimestampMixin):
+    __tablename__ = 'posts'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String(length=100), unique=True)
+    body = Column(Text)
+    user_id = Column(Integer, ForeignKey('users.id'))
+    author = relationship('User', back_populates='posts')
 
 
 class UserSchema(SQLAlchemyAutoSchema):
     class Meta:
         model = User
+
+    posts = auto_field()
 
 
 class UserAdmin(ModelAdmin):
@@ -33,11 +51,6 @@ class UserAdmin(ModelAdmin):
     
     list_display = ['id', 'username', 'password', 'custom']
     search_columns = ['username']
-
-
-class TimestampMixin:
-    created_at = Column(DateTime, default=datetime.now, nullable=False)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
 
 
 class Flower(Base, TimestampMixin):
