@@ -1,21 +1,14 @@
 from admin.form import Form, validates, PasswordField, \
-    TextField, BooleanField, TextareaWidget
+    TextField, BooleanField, TextareaWidget, SelectField, SelectWidget, \
+    ToggleWidget
 
 
 class LoginForm(Form):
-    username = TextField(label="Username", required=True)
-    password = PasswordField(label="Password")
-    body = TextField(
-        label="Body",
-        widget=TextareaWidget(),
-        validators=[
-            lambda f, v, s: None if v else 'This field can not be empty',
-            lambda f, v, s: 'Text can not contains "a" letters' if 'a' in v else None
-        ]
-    )
-    remember = BooleanField(label='Remember Me')
-
-    @validates('username', 'password')
-    def validate_username(self, value, session):
-        if len(value) < 3:
-            return 'too short'
+    text = TextField(label="text", required=True)
+    password = PasswordField(label="password")
+    textarea = TextField(label="textarea", widget=TextareaWidget())
+    checkbox = BooleanField(label='checkbox')
+    switcher = BooleanField(label='switcher', widget=ToggleWidget())
+    select = SelectField(label='select', items=[(1, 'Easy'), (2, 'Medium'), (3, 'Hard')])
+    multiselect = SelectField(label='multiselect', items=[(1, 'Easy'), (2, 'Medium'), (3, 'Hard')], widget=SelectWidget(multi=True))
+    radio = SelectField(label='radio', items=[(1, 'Easy'), (2, 'Medium'), (3, 'Hard')], widget=SelectWidget(template_name='widgets/radio.html'))

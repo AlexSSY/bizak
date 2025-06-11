@@ -1,14 +1,13 @@
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, Any, Optional
 from sqlalchemy.orm import Session
 from fastapi import FastAPI, Request, Depends
 from fastapi.templating import Jinja2Templates
 from admin.model import ModelAdminRegistry
-from admin.form import get_model_fields
+from admin.form import Form, model_to_form
 from app import model as app_model
 from app.db import get_db, Base, engine
 from app.form import LoginForm
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 
 @asynccontextmanager
@@ -39,7 +38,7 @@ def new(request: Request, model: str, session: Annotated[Session, Depends(get_db
     # schema_class = getattr(app_model, f'{model.capitalize()}Schema', None)
     # schema_instance: SQLAlchemyAutoSchema = schema_class()
     sqlalchemy_model_class = getattr(app_model, model.capitalize(), None)
-    fields = get_model_fields(sqlalchemy_model_class)
+    fields = model_to_form(sqlalchemy_model_class)
     context = {
         'method': 'post',
         'action': f'/{model}/create',
@@ -48,10 +47,8 @@ def new(request: Request, model: str, session: Annotated[Session, Depends(get_db
     return templating.TemplateResponse(request=request, name='add.html', context=context)
 
 
-@app.get('/admin/test/form')
-def form(request: Request):
-    form = LoginForm()
-    fields = form.fields_html(templating=templating)
+async def render_form(request: Request, session: Session, form: Form, old_values: dict[str, Any] = {}):
+    fields = form.fields_html(templating=templating, old_values=old_values)
     context = {
         'fields': fields,
         'method': 'post',
@@ -60,21 +57,27 @@ def form(request: Request):
     return templating.TemplateResponse(request=request, name='form.html', context=context)
 
 
+@app.get('/admin/test/form')
+async def form(request: Request, session: Annotated[Session, Depends(get_db)]):
+    form = LoginForm()
+    return await render_form(request, session, form)
+
+
 @app.post('/admin/test/form')
 async def post_form(request: Request, session: Annotated[Session, Depends(get_db)]):
     form_data = await request.form()
-    form = LoginForm()
+    form=LoginForm()
     form.validate(form_data=form_data, session=session)
     if form.valid:
         return form.cleaned_data
     else:
-        fields = form.fields_html(templating=templating, old_values=form_data)
-        context = {
-            'fields': fields,
-            'method': 'post',
-            'action': '/admin/test/form',
-        }
-        return templating.TemplateResponse(request=request, name='form.html', context=context)
+        return await render_form(request=request, session=session, form=form)
+
+
+@app.get('/admin/test/form/model')
+async def form_model(request: Request, session: Annotated[Session, Depends(get_db)]):
+    form = model_to_form(app_model.Post)
+    return await render_form(request=request, session=session, form=form)
 
 
 @app.get('/admin/')

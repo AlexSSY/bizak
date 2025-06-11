@@ -1,26 +1,11 @@
 from dataclasses import dataclass, asdict, field
-from typing import Any, Optional, Callable
+from typing import Any, Optional, Callable, Type
+from sqlalchemy import String, Text, Integer
 from sqlalchemy.orm import Session
 from fastapi.templating import Jinja2Templates
 from functools import wraps
-from marshmallow import Schema
 
 from .types import SQLAlchemyModel
-
-
-def get_model_fields(model_cls: SQLAlchemyModel):
-    fields = []
-    for column in model_cls.__table__.columns:
-        if column.primary_key and column.autoincrement:
-            continue  # не отображаем id
-        field = {
-            "name": column.name,
-            "nullable": column.nullable,
-            "type": column.type.python_type.__name__,  # str, int, etc.
-            "default": column.default.arg if column.default else None,
-        }
-        fields.append(field)
-    return fields
 
 
 @dataclass
@@ -45,7 +30,18 @@ class TextareaWidget(Widget):
 @dataclass
 class CheckboxWidget(Widget):
     template_name: str = '/widgets/checkbox.html'
-    class_: str = 'form-control'
+    class_: str = ''
+
+
+@dataclass
+class ToggleWidget(CheckboxWidget):
+    template_name: str = '/widgets/toggle.html'
+
+
+@dataclass
+class SelectWidget(Widget):
+    template_name: str = '/widgets/select.html'
+    multi: bool = False
 
 
 FormFieldValidator = Callable[[str, Session], Optional[str]]
@@ -85,6 +81,13 @@ class FormField:
 @dataclass
 class TextField(FormField):
     widget: Widget = field(default_factory=TextWidget)
+    type: str = 'text'
+
+
+@dataclass
+class IntegerField(FormField):
+    widget: Widget = field(default_factory=TextWidget)
+    type: str = 'number'
 
 
 @dataclass
@@ -99,6 +102,20 @@ class BooleanField(FormField):
     value: bool = False
     type: str = 'checkbox'
     widget: Widget = field(default_factory=CheckboxWidget)
+
+
+@dataclass
+class SelectField(FormField):
+    value: str = ''
+    type: str = 'select'
+    items: list[tuple[int, str]] = field(default_factory=list)
+    widget: Widget = field(default_factory=SelectWidget)
+
+
+@dataclass
+class DateTimeField(FormField):
+    widget: Widget = field(default_factory=TextWidget)
+    type: str = 'datetime-local'
 
 
 class FormMeta(type):
@@ -135,7 +152,6 @@ class Form(metaclass=FormMeta):
 
     class Meta:
         model: SQLAlchemyModel = None
-        schema: Schema = None
 
     def _clear_errors(self):
         for field in self.form_fields:
@@ -179,3 +195,39 @@ class Form(metaclass=FormMeta):
             fields_html.append(field(templating=templating, old_values=old_values))
 
         return fields_html
+
+
+class FieldFactory:
+    _registry = {
+        'String': TextField,
+        'Text': TextField,
+        'Integer': IntegerField,
+        'DateTime': DateTimeField,
+    }
+
+    @staticmethod
+    def create(feild_type: Type) -> Type[FormField]:
+        type_name = feild_type.__class__.__name__
+        return FieldFactory._registry.get(type_name, TextField)
+
+
+def model_to_form(model_cls: SQLAlchemyModel) -> Form:
+    form_fields = []
+    for column in model_cls.__table__.columns:
+        if column.primary_key and column.autoincrement:
+            continue  # не отображаем id
+        field_class = FieldFactory.create(column.type)
+        field = field_class(
+            name=column.name,
+            label=column.name,
+            required=not column.nullable,
+            # type=column.type.python_type.__name__,  # str, int, etc.
+            # "default": column.default.arg if column.default else None,
+        )
+        form_fields.append(field)
+    
+    form = Form()
+    form.form_fields = form_fields
+    return form
+
+
