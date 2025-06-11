@@ -8,7 +8,7 @@ from functools import wraps
 from .types import SQLAlchemyModel
 
 
-FormFieldValidator = Callable[[str, Session], Optional[str]]
+FormFieldValidator = Callable[[Any, str, Session], Optional[str]]
 
 
 def validates(*field_names):
