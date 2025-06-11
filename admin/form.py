@@ -44,7 +44,7 @@ class SelectWidget(Widget):
     multi: bool = False
 
 
-FormFieldValidator = Callable[[str, Session], Optional[str]]
+FormFieldValidator = Callable[[Any, str, Session], Optional[str]]
 
 
 def validates(*field_names):
