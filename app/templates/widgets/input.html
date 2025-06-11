@@ -1,23 +1,15 @@
-{% set old_value = old_values[name] %}
-
+{% set old_value = old_values[name] -%}
 <label for="{{ name }}" class="form-label">{{ label }}</label>
+<input
+  class="{{ widget.class_ }}{% if errors %} is-invalid{% endif %}"
+  type="{{ type }}"
+  name="{{ name }}"
+  id="{{ name }}"
+  {% if old_value and shared -%}
+  value="{{ old_value }}"
+  {% endif %}
+  {% if required %}required{% endif %}
+>
 {% if errors %}
-<div class="input-group has-validation">
-{% endif %}
-  <input
-    class="{{ widget.class_ }}{% if errors %} is-invalid{% endif %}"
-    type="{{ type }}"
-    name="{{ name }}"
-    id="{{ name }}"
-    {% if old_value and shared %}
-    value="{{ old_value }}"
-    {% endif %}
-    {% if required %}required{% endif %}
-    {% if errors %}aria-describedby="inputGroupPrepend3 validation{{ name }}Feedback"{% endif %}
-  >
-{% if errors %}
-  <div id="validation{{ name }}Feedback" class="invalid-feedback">
-    {{ errors[0] }}
-  </div>
-</div>
-{% endif %}
+<div class="invalid-feedback">{{ errors[0] }}</div>
+{%- endif -%}
