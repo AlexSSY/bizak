@@ -8,42 +8,6 @@ from functools import wraps
 from .types import SQLAlchemyModel
 
 
-@dataclass
-class Widget:
-    template_name: str
-    class_: str = ''
-
-
-@dataclass
-class TextWidget(Widget):
-    template_name: str = '/widgets/input.html'
-    class_: str = 'form-control'
-
-
-@dataclass
-class TextareaWidget(Widget):
-    template_name: str = '/widgets/textarea.html'
-    class_: str = 'form-control'
-    rows: int = 5
-
-
-@dataclass
-class CheckboxWidget(Widget):
-    template_name: str = '/widgets/checkbox.html'
-    class_: str = ''
-
-
-@dataclass
-class ToggleWidget(CheckboxWidget):
-    template_name: str = '/widgets/toggle.html'
-
-
-@dataclass
-class SelectWidget(Widget):
-    template_name: str = '/widgets/select.html'
-    multi: bool = False
-
-
 FormFieldValidator = Callable[[str, Session], Optional[str]]
 
 
@@ -60,9 +24,9 @@ def validates(*field_names):
 @dataclass
 class FormField:
     label: str
-    widget: Widget
-    type: str = 'text'
-    value: str = ''
+    template: str
+    type: str
+    # value: str = ''
     name: Optional[str] = None
     required: bool = False
     validators: list[FormFieldValidator] = field(default_factory=list)
@@ -70,7 +34,7 @@ class FormField:
     shared: bool = True
     
     def __call__(self, templating: Jinja2Templates, old_values: dict[str, Any] = {}):
-        template = templating.get_template(self.widget.template_name)
+        template = templating.get_template(self.template)
         context = asdict(self)
         context.update({
             'old_values': old_values
@@ -80,13 +44,20 @@ class FormField:
 
 @dataclass
 class TextField(FormField):
-    widget: Widget = field(default_factory=TextWidget)
+    template: str = '/widgets/input.html'
     type: str = 'text'
 
 
 @dataclass
+class TextareaField(FormField):
+    template: str = '/widgets/textarea.html'
+    type: str = 'textarea'
+    rows: int = 5
+
+
+@dataclass
 class IntegerField(FormField):
-    widget: Widget = field(default_factory=TextWidget)
+    template: str = '/widgets/input.html'
     type: str = 'number'
 
 
@@ -94,14 +65,14 @@ class IntegerField(FormField):
 class PasswordField(FormField):
     type: str = 'password'
     shared: bool = False
-    widget: Widget = field(default_factory=TextWidget)
+    template: str = '/widgets/input.html'
 
 
 @dataclass
 class BooleanField(FormField):
     value: bool = False
     type: str = 'checkbox'
-    widget: Widget = field(default_factory=CheckboxWidget)
+    template: str = '/widgets/checkbox.html'
 
 
 @dataclass
@@ -109,12 +80,13 @@ class SelectField(FormField):
     value: str = ''
     type: str = 'select'
     items: list[tuple[int, str]] = field(default_factory=list)
-    widget: Widget = field(default_factory=SelectWidget)
+    multi: bool = False
+    template: str = '/widgets/select.html'
 
 
 @dataclass
 class DateTimeField(FormField):
-    widget: Widget = field(default_factory=TextWidget)
+    template: str = '/widgets/input.html'
     type: str = 'datetime-local'
 
 

@@ -5,10 +5,10 @@
 <div class="input-group has-validation">
 {% endif %}
   <textarea
-    class="{{ widget.class_ }}{% if errors %} is-invalid{% endif %}"
+    class="form-control {{ class_ }}{% if errors %} is-invalid{% endif %}"
     type="{{ type }}"
     name="{{ name }}"
-    rows="{{ widget.rows }}"
+    rows="{{ rows }}"
     id="{{ name }}"
     {% if required %}required{% endif %}
     {% if errors %}aria-describedby="inputGroupPrepend3 validation{{ name }}Feedback"{% endif %}

@@ -1,7 +1,7 @@
 {% set old_value = old_values[name] -%}
 <label for="{{ name }}" class="form-label">{{ label }}</label>
 <input
-  class="{{ widget.class_ }}{% if errors %} is-invalid{% endif %}"
+  class="form-control {{ class_ }}{% if errors %} is-invalid{% endif %}"
   type="{{ type }}"
   name="{{ name }}"
   id="{{ name }}"
