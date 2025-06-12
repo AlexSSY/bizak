@@ -8,7 +8,14 @@
     </div>
     <div class="card-body">
       {% for field in fields %}
-        {{ field | safe }}
+        <div class="mb-3 row">
+          {{ field.label }}
+          <div class="col">
+            {{ field.input }}
+            {{ field.help }}
+            {{ field.erros }}
+          </div>
+        </div>
       {% endfor %}
       <!-- <div class="row">
         <label class="col-3 col-form-label pt-0">Checkboxes</label>

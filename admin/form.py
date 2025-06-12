@@ -1,5 +1,5 @@
 from dataclasses import dataclass, asdict, field
-from typing import Any, Optional, Callable, Type
+from typing import Any, Dict, Optional, Callable, Type
 from sqlalchemy import Column, Table
 from sqlalchemy.orm import Session, class_mapper
 from fastapi.templating import Jinja2Templates
@@ -34,7 +34,7 @@ class FormField:
     errors: list[str] = field(default_factory=list)
     shared: bool = True
     
-    def __call__(self, templating: Jinja2Templates, old_values: dict[str, Any] = {}):
+    def __call__(self, templating: Jinja2Templates, old_values: dict[str, Any] = {}) -> Dict[str, str]:
         template = templating.get_template(self.template)
         context = asdict(self)
         context.update({
