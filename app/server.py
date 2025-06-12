@@ -38,7 +38,7 @@ def new(request: Request, model: str, session: Annotated[Session, Depends(get_db
     # schema_class = getattr(app_model, f'{model.capitalize()}Schema', None)
     # schema_instance: SQLAlchemyAutoSchema = schema_class()
     sqlalchemy_model_class = getattr(app_model, model.capitalize(), None)
-    fields = model_to_form(sqlalchemy_model_class)
+    fields = model_to_form(sqlalchemy_model_class, session)
     context = {
         'method': 'post',
         'action': f'/{model}/create',
@@ -74,9 +74,10 @@ async def post_form(request: Request, session: Annotated[Session, Depends(get_db
         return await render_form(request=request, session=session, form=form)
 
 
-@app.get('/admin/test/form/model')
-async def form_model(request: Request, session: Annotated[Session, Depends(get_db)]):
-    form = model_to_form(app_model.Post)
+@app.get('/admin/test/form/{model}')
+async def form_model(request: Request, model: str, session: Annotated[Session, Depends(get_db)]):
+    model_cls = getattr(app_model, model)
+    form = model_to_form(model_cls, session)
     return await render_form(request=request, session=session, form=form)
 
 

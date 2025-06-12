@@ -19,6 +19,9 @@ class User(Base):
     password = Column(String(length=200))
     posts = relationship('Post', back_populates='author')
 
+    def __str__(self):
+        return self.username
+
 
 class Post(Base, TimestampMixin):
     __tablename__ = 'posts'
@@ -27,6 +30,15 @@ class Post(Base, TimestampMixin):
     body = Column(Text)
     user_id = Column(Integer, ForeignKey('users.id'))
     author = relationship('User', back_populates='posts')
+
+
+class Comment(Base, TimestampMixin):
+    __tablename__ = 'comments'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String(length=100), unique=True)
+    body = Column(Text)
+    user_id = Column(Integer, ForeignKey('users.id'))
+    post_id = Column(Integer, ForeignKey('posts.id'))
 
 
 class UserSchema(SQLAlchemyAutoSchema):

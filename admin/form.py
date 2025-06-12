@@ -1,7 +1,7 @@
 from dataclasses import dataclass, asdict, field
 from typing import Any, Optional, Callable, Type
-from sqlalchemy import String, Text, Integer
-from sqlalchemy.orm import Session
+from sqlalchemy import Column, Table
+from sqlalchemy.orm import Session, class_mapper
 from fastapi.templating import Jinja2Templates
 from functools import wraps
 
@@ -27,6 +27,7 @@ class FormField:
     template: str
     type: str
     # value: str = ''
+    help: Optional[str] = None
     name: Optional[str] = None
     required: bool = False
     validators: list[FormFieldValidator] = field(default_factory=list)
@@ -172,34 +173,62 @@ class Form(metaclass=FormMeta):
 class FieldFactory:
     _registry = {
         'String': TextField,
-        'Text': TextField,
+        'Text': TextareaField,
         'Integer': IntegerField,
         'DateTime': DateTimeField,
     }
 
     @staticmethod
-    def create(feild_type: Type) -> Type[FormField]:
-        type_name = feild_type.__class__.__name__
-        return FieldFactory._registry.get(type_name, TextField)
+    def create(model_cls: SQLAlchemyModel, column: Column, session: Session) -> FormField:
+        # 1. ForeignKey — создаём SelectField
+        if column.foreign_keys:
+            related_model = FieldFactory.resolve_related_model(model_cls, column.name)
+            items = [(getattr(obj, 'id'), str(obj)) for obj in session.query(related_model).all()]
+            return SelectField(
+                name=column.name,
+                label=column.name,
+                required=not column.nullable,
+                items=items
+            )
 
-
-def model_to_form(model_cls: SQLAlchemyModel) -> Form:
-    form_fields = []
-    for column in model_cls.__table__.columns:
-        if column.primary_key and column.autoincrement:
-            continue  # не отображаем id
-        field_class = FieldFactory.create(column.type)
-        field = field_class(
+        # 2. Простые типы — создаём по _registry
+        type_name = column.type.__class__.__name__
+        field_class = FieldFactory._registry.get(type_name, TextField)
+        return field_class(
             name=column.name,
             label=column.name,
             required=not column.nullable,
-            # type=column.type.python_type.__name__,  # str, int, etc.
-            # "default": column.default.arg if column.default else None,
         )
+
+    def resolve_related_model(model_cls, field_name):
+        mapper = class_mapper(model_cls)
+        prop = mapper.get_property(field_name)
+        
+        if hasattr(prop, 'mapper'):  # relationship
+            return prop.mapper.class_
+        elif hasattr(prop, 'columns'):
+            column = prop.columns[0]
+            fk = list(column.foreign_keys)[0]
+            related_table = fk.column.table
+            
+            # Используем способ через registry
+            for m in model_cls.registry.mappers:
+                if m.local_table is related_table:
+                    return m.class_
+        
+        raise ValueError(f"Can't resolve related model for field '{field_name}'")
+
+
+def model_to_form(model_cls: SQLAlchemyModel, session: Session) -> Form:
+    form_fields = []
+    for column in model_cls.__table__.columns:
+        if column.primary_key and column.autoincrement:
+            continue
+        if column.name == 'created_at' or column.name == 'updated_at':
+            continue
+        field = FieldFactory.create(model_cls, column, session)
         form_fields.append(field)
-    
+
     form = Form()
     form.form_fields = form_fields
     return form
-
-
