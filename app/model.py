@@ -2,9 +2,8 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from admin.model import ModelAdmin, ModelAdminRegistry, display
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema, auto_field
 
-from .db import Base, engine
+from .db import Base, get_db
 
 
 class TimestampMixin:
@@ -15,7 +14,7 @@ class TimestampMixin:
 class User(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String(length=100), unique=True)
+    username = Column(String(length=100), unique=True, nullable=False, doc='Unique username')
     password = Column(String(length=200))
     posts = relationship('Post', back_populates='author')
 
@@ -39,14 +38,6 @@ class Comment(Base, TimestampMixin):
     body = Column(Text)
     user_id = Column(Integer, ForeignKey('users.id'))
     post_id = Column(Integer, ForeignKey('posts.id'))
-
-
-class UserSchema(SQLAlchemyAutoSchema):
-    class Meta:
-        model = User
-        relationship=True
-
-    posts = auto_field()
 
 
 class UserAdmin(ModelAdmin):
@@ -77,5 +68,12 @@ class FlowerAdmin(ModelAdmin):
     search_columns = ['name', 'color']
 
 
+class PostAdmin(ModelAdmin):
+    @display(display='Author')
+    def get_user_id_display(self, obj):
+        return obj.author
+
+
 ModelAdminRegistry.register(User, UserAdmin)
 ModelAdminRegistry.register(Flower, FlowerAdmin)
+ModelAdminRegistry.register(Post, PostAdmin)

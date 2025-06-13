@@ -1,10 +1,7 @@
-{% extends 'base.html' %}
-
-{% block body %}
 <div class="col-12 p-4">
-  <form class="card">
+  <form class="card" action="{{ action }}" method="{{ method }}">
     <div class="card-header">
-      <h3 class="card-title">Horizontal form</h3>
+      <h3 class="card-title">{{ model }}</h3>
     </div>
     <div class="card-body">
       {% for field in fields %}
@@ -14,15 +11,15 @@
           </div>
           <div class="col">
             {{ field.input | safe }}
+            {{ field.errors | safe }}
             {{ field.help | safe }}
-            {{ field.erros | safe }}
           </div>
         </div>
       {% endfor %}
       <div class="text-end">
+        <a href="{{ request.url_for('admin-model-index', model=model) }}" class="btn">Back</a>
         <button type="submit" class="btn btn-primary">Submit</button>
       </div>
     </div>
   </form>
 </div>
-{% endblock %}

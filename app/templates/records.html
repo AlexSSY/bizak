@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<div class="page-body">
+  <div class="container-xl">
+    <div class="row row-cards">
+      <div class="col-lg-8">
+        <div class="card">
+          <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+              <thead>
+                <tr>
+                  {% for column in columns %}
+                  <th>{{ column }}</th>
+                  {% endfor %}
+                  <th class="w-1"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for record in records %}
+                <tr>
+                  {% for value in record %}
+                  <td {% if loop.index0 > 0 > 0 %}class="text-secondary"{% endif %}>{{ value }}</td>
+                  {% endfor %}
+                  <td>
+                    <a href="#">Edit</a>
+                  </td>
+                </tr>
+                {% endfor %}
+                <tr>
+                  <td colspan="{{ (columns | length) + 1 }}" class="text-end">
+                    <a href="/admin/{{ model }}/new" class="btn btn-primary">add</a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="card">
+          <div class="card-body">
+            <h3 class="card-title">Models</h3>
+            <table class="table table-sm table-borderless">
+              <thead>
+                <tr>
+                  <th>name</th>
+                  <th class="text-end">size</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for name, size in models_sizes %}
+                <tr>
+                  <td>
+                    <a href="{{ request.url_for('admin-model-index', model=name) }}">{{ name }}</a>
+                  </td>
+                  <td class="w-1 fw-bold text-end">
+                    {{ size }}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

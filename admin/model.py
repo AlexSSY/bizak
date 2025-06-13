@@ -1,9 +1,10 @@
-from typing import Optional, Protocol
 from types import MethodType
+from typing import List
 from sqlalchemy import inspect
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session
 from fastapi import Request
+from fastapi.templating import Jinja2Templates
 import functools
 
 from .types import SQLAlchemyModel
@@ -87,11 +88,13 @@ class ModelAdmin:
         return display_methods
     
     
-    def index_view(self, request: Request, session: Session) -> dict:
+    def index_view(self, templating: Jinja2Templates, request: Request, session: Session) -> dict:
+        """Render a html page list of records"""
+        
         display_methods = self._display_methods()
 
         offset = request.query_params.get('offset', default=0)
-        limit = request.query_params.get('limit', default=8)
+        limit = request.query_params.get('limit', default=1000)
         limit = max(1, int(limit))
         search = request.query_params.get('search', default=None)
         order = request.query_params.get('order', default=None)
@@ -117,10 +120,12 @@ class ModelAdmin:
                 values.append(display_method(db_record))
             records.append(values)
 
-        return {
+        context= {
             'columns': list([c.display for c in display_methods]),
             'records': records,
+            'model': self.model.__name__.capitalize()
         }
+        return templating.TemplateResponse(request, 'records.html', context)
 
 
 def display(**parameters):
@@ -158,3 +163,7 @@ class ModelAdminRegistry:
         model_class = result[0][0]
         model_admin_class = result[0][1]
         return model_admin_class(model_class)
+    
+    @classmethod
+    def get_all(cls) -> List[SQLAlchemyModel]:
+        return list(cls.admin_model_storage.keys())

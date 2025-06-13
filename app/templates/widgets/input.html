@@ -1,17 +1,10 @@
-<div class="mb-3 row">
-  <label for="{{ name }}" class="col-3 col-form-label {% if required %}required{% endif %}">{{ label }}</label>
-  <div class="col">
-    <input
-      class="form-control {{ class_ }}{% if errors %} is-invalid{% endif %}"
-      type="{{ type }}"
-      name="{{ name }}"
-      id="{{ name }}"
-      {% if old_value and shared -%}
-      value="{{ old_values[name] }}"
-      {% endif %}
-      {% if required %}required{% endif %}
-    >
-    {% if help %}<small class="form-hint">{{ help }}</small>{% endif %}
-    {% if errors %}<div class="invalid-feedback">{{ errors[0] }}</div>{%- endif -%}
-  </div>
-</div>
+<input
+  class="form-control {{ class_ }}{% if errors %} is-invalid{% endif %}"
+  type="{{ type }}"
+  name="{{ name }}"
+  id="{{ name }}"
+  {% if value -%}
+  value="{{ old_values[name] }}"
+  {% endif %}
+  {% if required %}required{% endif %}
+>

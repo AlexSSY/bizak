@@ -1,5 +1,6 @@
 from dataclasses import dataclass, asdict, field
-from typing import Any, Dict, Optional, Callable, Type
+from typing import Any, Dict, Literal, Optional, Callable, Type
+from fastapi import Request
 from sqlalchemy import Column, Table
 from sqlalchemy.orm import Session, class_mapper
 from fastapi.templating import Jinja2Templates
@@ -8,7 +9,7 @@ from functools import wraps
 from .types import SQLAlchemyModel
 
 
-FormFieldValidator = Callable[[Any, str, Session], Optional[str]]
+FormFieldValidator = Callable[[Any, str, Any, Session], Optional[str]]
 
 
 def validates(*field_names):
@@ -21,12 +22,18 @@ def validates(*field_names):
     return decorator
 
 
+Html = str
+
+
 @dataclass
 class FormField:
     label: str
-    template: str
     type: str
-    # value: str = ''
+    value: str = None
+    input_template: str = '/widgets/input.html'
+    label_template: str = '/widgets/label.html'
+    help_template: str = '/widgets/help.html'
+    errors_template: str = '/widgets/errors.html'
     help: Optional[str] = None
     name: Optional[str] = None
     required: bool = False
@@ -34,31 +41,37 @@ class FormField:
     errors: list[str] = field(default_factory=list)
     shared: bool = True
     
-    def __call__(self, templating: Jinja2Templates, old_values: dict[str, Any] = {}) -> Dict[str, str]:
-        template = templating.get_template(self.template)
+    def __call__(self, templating: Jinja2Templates, old_values: dict[str, Any] = {}) -> Dict[str, Html]:
+        templates = {
+            'input': templating.get_template(self.input_template),
+            'label': templating.get_template(self.label_template),
+            'help': templating.get_template(self.help_template),
+            'errors': templating.get_template(self.errors_template),
+        }
+
         context = asdict(self)
         context.update({
             'old_values': old_values
         })
-        return template.render(context).strip()
+
+        result = {k: v.render(context).strip() for k, v in templates.items()} 
+        return result
 
 
 @dataclass
 class TextField(FormField):
-    template: str = '/widgets/input.html'
     type: str = 'text'
 
 
 @dataclass
 class TextareaField(FormField):
-    template: str = '/widgets/textarea.html'
+    input_template: str = '/widgets/textarea.html'
     type: str = 'textarea'
     rows: int = 5
 
 
 @dataclass
 class IntegerField(FormField):
-    template: str = '/widgets/input.html'
     type: str = 'number'
 
 
@@ -66,14 +79,13 @@ class IntegerField(FormField):
 class PasswordField(FormField):
     type: str = 'password'
     shared: bool = False
-    template: str = '/widgets/input.html'
 
 
 @dataclass
 class BooleanField(FormField):
     value: bool = False
     type: str = 'checkbox'
-    template: str = '/widgets/checkbox.html'
+    input_template: str = '/widgets/checkbox.html'
 
 
 @dataclass
@@ -82,12 +94,11 @@ class SelectField(FormField):
     type: str = 'select'
     items: list[tuple[int, str]] = field(default_factory=list)
     multi: bool = False
-    template: str = '/widgets/select.html'
+    input_template: str = '/widgets/select.html'
 
 
 @dataclass
 class DateTimeField(FormField):
-    template: str = '/widgets/input.html'
     type: str = 'datetime-local'
 
 
@@ -130,10 +141,14 @@ class Form(metaclass=FormMeta):
         for field in self.form_fields:
             field.errors.clear()
 
-    def save(self, data: dict[str, Any], session: Session):
+    def save(self, data: dict[str, Any], session: Session) -> bool:
+        self.validate(data, session)
+        if not self.valid:
+            return False
         instance = self.Meta.model(**data)
         session.add(instance)
         session.commit()
+        return True
 
     def validate(self, form_data: dict[str, Any], session: Session) -> dict[str, Any]:
         self.cleaned_data = {}
@@ -142,12 +157,10 @@ class Form(metaclass=FormMeta):
         self._clear_errors()
         for field in self.form_fields:
             field_value = form_data.get(field.name)
-        #     field.value = field_value  # сохраняем текущее значение, чтобы отрисовать обратно в форме
-        #     field.errors.clear()       # очищаем предыдущие ошибки
 
             for validator in field.validators:
                 try:
-                    validation_error = validator(self, field_value, session)
+                    validation_error = validator(self, field.name, field_value, session)
                 except Exception as e:
                     # если вдруг валидатор падает, мы не ломаем всю валидацию
                     validation_error = str(e)
@@ -168,6 +181,26 @@ class Form(metaclass=FormMeta):
             fields_html.append(field(templating=templating, old_values=old_values))
 
         return fields_html
+    
+    async def render_to_html(
+            self,
+            request: Request,
+            templating: Jinja2Templates, 
+            template_name: str,
+            action: str = '/',
+            method: str = 'post'
+        ) -> Html:
+        """This call methods renders form to html string"""
+        template = templating.get_template(template_name)
+        old_values = await request.form()
+        context = {
+            'request': request,
+            'method': method,
+            'action': action,
+            'fields': self.fields_html(templating, old_values),
+            'model': self.Meta.model.__name__,
+        }
+        return template.render(context)
 
 
 class FieldFactory:
@@ -219,16 +252,29 @@ class FieldFactory:
         raise ValueError(f"Can't resolve related model for field '{field_name}'")
 
 
-def model_to_form(model_cls: SQLAlchemyModel, session: Session) -> Form:
+def unique_db_validator(form: Form, key: str, value: Any, session: Session) -> Optional[str]:
+    model = form.Meta.model
+    column = getattr(model, key)
+    if session.query(model).filter(column == value).first():
+        return 'already exists'
+    return None
+
+
+def model_to_form(model_cls: SQLAlchemyModel, session: Session, readonly_fields: list[str] = []) -> Form:
     form_fields = []
     for column in model_cls.__table__.columns:
         if column.primary_key and column.autoincrement:
             continue
-        if column.name == 'created_at' or column.name == 'updated_at':
+        if column.name in readonly_fields:
             continue
         field = FieldFactory.create(model_cls, column, session)
+        if column.unique:
+            field.validators.append(unique_db_validator)
+        if column.doc:
+            field.help = column.doc
         form_fields.append(field)
 
     form = Form()
     form.form_fields = form_fields
+    form.Meta.model = model_cls
     return form

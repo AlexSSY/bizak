@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated, Any, Optional
 from sqlalchemy.orm import Session
 from fastapi import FastAPI, Request, Depends
+from fastapi.responses import Response, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from admin.model import ModelAdminRegistry
 from admin.form import Form, model_to_form
@@ -17,71 +18,76 @@ async def liffespan(app: FastAPI):
 
 
 app = FastAPI(debug=True, lifespan=liffespan)
-templating = Jinja2Templates('app/templates')
+
+@app.middleware("http")
+async def add_models_to_request(request: Request, call_next):
+    models_sizes = []
+    models = ModelAdminRegistry.get_all()
+    session = next(get_db())
+    for model in models:
+        size = session.query(model).count()
+        models_sizes.append((model.__name__, size))
+    request.state.models_sizes = models_sizes
+    response = await call_next(request)
+    return response
+
+def global_context(request: Request) -> dict:
+    context = {
+        "site_name": "MyApp",
+        "models_sizes": getattr(request.state, "models_sizes", None),
+    }
+    return context
+
+templating = Jinja2Templates('app/templates', context_processors=[global_context])
 
 
-@app.get('/admin/{model}')
-def index(request: Request, model: str, session: Annotated[Session, Depends(get_db)]):
+@app.get('/admin/{model}/json')
+def index_json(request: Request, model: str, session: Annotated[Session, Depends(get_db)]):
     model_admin = ModelAdminRegistry.get_instance_by(model)
     return model_admin.index_view(request=request, session=session)
 
 
-@app.get('/admin/{model}/schema')
-def schema(reques: Request, model: str, session: Annotated[Session, Depends(get_db)]):
-    # schema: SQLAlchemyAutoSchema = getattr(app_model, f'{model}Schema', None)
-    user_instance = session.query(app_model.User).first()
-    return app_model.UserSchema().dumps(user_instance)
+@app.get('/admin/{model}', name='admin-model-index')
+def index(request: Request, model: str, session: Annotated[Session, Depends(get_db)]):
+    model_admin = ModelAdminRegistry.get_instance_by(model)
+    return model_admin.index_view(templating, request, session)
 
 
 @app.get('/admin/{model}/new')
-def new(request: Request, model: str, session: Annotated[Session, Depends(get_db)]):
-    # schema_class = getattr(app_model, f'{model.capitalize()}Schema', None)
-    # schema_instance: SQLAlchemyAutoSchema = schema_class()
+async def new(request: Request, model: str, session: Annotated[Session, Depends(get_db)]):
     sqlalchemy_model_class = getattr(app_model, model.capitalize(), None)
-    fields = model_to_form(sqlalchemy_model_class, session)
-    context = {
-        'method': 'post',
-        'action': f'/{model}/create',
-        "fields": fields,
+    if sqlalchemy_model_class == None:
+        return templating.TemplateResponse(request, '404.html', {}, 404)
+
+    readonly_fields = ['created_at', 'updated_at']
+    form = model_to_form(sqlalchemy_model_class, session, readonly_fields)
+    form_html = await form.render_to_html(request, templating, '/widgets/form.html', action=f'/admin/{model}/')
+    ctx = {
+        'form': form_html
     }
-    return templating.TemplateResponse(request=request, name='add.html', context=context)
+    return templating.TemplateResponse(request=request, name='add.html', context=ctx)
 
 
-async def render_form(request: Request, session: Session, form: Form, old_values: dict[str, Any] = {}):
-    fields = form.fields_html(templating=templating, old_values=old_values)
-    context = {
-        'fields': fields,
-        'method': 'post',
-        'action': '/admin/test/form',
-    }
-    return templating.TemplateResponse(request=request, name='form.html', context=context)
+@app.post('/admin/{model}')
+async def create_model(request: Request, model: str, session: Annotated[Session, Depends(get_db)]):
+    sqlalchemy_model_class = getattr(app_model, model.capitalize(), None)
+    if sqlalchemy_model_class == None:
+        return templating.TemplateResponse(request, '404.html', {}, 404)
 
-
-@app.get('/admin/test/form')
-async def form(request: Request, session: Annotated[Session, Depends(get_db)]):
-    form = LoginForm()
-    return await render_form(request, session, form)
-
-
-@app.post('/admin/test/form')
-async def post_form(request: Request, session: Annotated[Session, Depends(get_db)]):
+    readonly_fields = ['created_at', 'updated_at']
+    form = model_to_form(sqlalchemy_model_class, session, readonly_fields)
     form_data = await request.form()
-    form=LoginForm()
-    form.validate(form_data=form_data, session=session)
-    if form.valid:
-        return form.cleaned_data
+    form.validate(form_data, session)
+    if form.save(form_data, session):
+        return RedirectResponse(f'/admin/{model}', 301)
     else:
-        return await render_form(request=request, session=session, form=form)
-
-
-@app.get('/admin/test/form/{model}')
-async def form_model(request: Request, model: str, session: Annotated[Session, Depends(get_db)]):
-    model_cls = getattr(app_model, model)
-    form = model_to_form(model_cls, session)
-    return await render_form(request=request, session=session, form=form)
+        form_html = await form.render_to_html(request, templating, '/widgets/form.html', action=f'/admin/{model}/')
+        ctx = {
+            'form': form_html
+        }
+        return templating.TemplateResponse(request=request, name='add.html', context=ctx)
 
 
 @app.get('/admin/')
 def main(session: Annotated[Session, Depends(get_db)]):
-    user_instance = session.query(app_model.User).first()
-    return user_instance
+    return 'PLEASE FOLLOW DEEPLINK'

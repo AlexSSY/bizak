@@ -2,7 +2,7 @@ import pytest
 
 
 def test_index(client):
-    response = client.get('/admin/Flower')
+    response = client.get('/admin/Flower/json')
     assert response.status_code == 200
     response_json = response.json()
     columns = response_json.get('columns')
@@ -16,7 +16,7 @@ def test_index(client):
 
 def test_search(client):
     # flower_admin_instance = FlowerAdmin(Flower)
-    response = client.get('admin/Flower', params={'search': 'Роза'})
+    response = client.get('/admin/Flower/json', params={'search': 'Роза'})
     assert response.status_code == 200
     response_json = response.json()
     records = response_json.get('records')
@@ -26,7 +26,7 @@ def test_search(client):
     
 
 def test_offset(client):
-    response = client.get('admin/Flower', params={'offset': 11})
+    response = client.get('/admin/Flower/json', params={'offset': 11})
     assert response.status_code == 200
     response_json = response.json()
     records = response_json.get('records')
@@ -36,7 +36,7 @@ def test_offset(client):
 
 
 def test_limit(client):
-    response = client.get('admin/Flower', params={'limit': 3})
+    response = client.get('/admin/Flower/json', params={'limit': 3})
     assert response.status_code == 200
     response_json = response.json()
     records = response_json.get('records')
@@ -47,7 +47,7 @@ def test_limit(client):
 
 @pytest.mark.parametrize('limit', [-1, 0])
 def test_limit_unreasonable_values_returns_default(client, limit):
-    response = client.get('admin/Flower', params={'limit': limit})
+    response = client.get('/admin/Flower/json', params={'limit': limit})
     assert response.status_code == 200
     response_json = response.json()
     records = response_json.get('records')
@@ -57,7 +57,7 @@ def test_limit_unreasonable_values_returns_default(client, limit):
 
 
 def test_order_default(client):
-    response = client.get('admin/Flower', params={'order': 'id'})
+    response = client.get('/admin/Flower/json', params={'order': 'id'})
     assert response.status_code == 200
     response_json = response.json()
     records = response_json.get('records')
@@ -67,7 +67,7 @@ def test_order_default(client):
 
 
 def test_order_asc(client):
-    response = client.get('admin/Flower', params={'order': 'id', 'order_type': 'asc'})
+    response = client.get('/admin/Flower/json', params={'order': 'id', 'order_type': 'asc'})
     assert response.status_code == 200
     response_json = response.json()
     records = response_json.get('records')
@@ -77,7 +77,7 @@ def test_order_asc(client):
 
 
 def test_order_desc(client):
-    response = client.get('admin/Flower', params={'order': 'id', 'order_type': 'desc'})
+    response = client.get('/admin/Flower/json', params={'order': 'id', 'order_type': 'desc'})
     assert response.status_code == 200
     response_json = response.json()
     records = response_json.get('records')
@@ -87,7 +87,7 @@ def test_order_desc(client):
 
 
 def test_flower_filter_by_name(client):
-    response = client.get('admin/Flower', params={'filters[name]': 'Роза'})
+    response = client.get('/admin/Flower/json', params={'filters[name]': 'Роза'})
     assert response.status_code == 200
     response_json = response.json()
     records = response_json.get('records')
@@ -96,7 +96,7 @@ def test_flower_filter_by_name(client):
 
 
 def test_flower_filter_by_id_gte(client):
-    response = client.get('admin/Flower', params={'filters[id__gte]': 3})
+    response = client.get('/admin/Flower/json', params={'filters[id__gte]': 3})
     assert response.status_code == 200
     response_json = response.json()
     records = response_json.get('records')
@@ -106,7 +106,7 @@ def test_flower_filter_by_id_gte(client):
 
 
 def test_flower_filter_by_id_gt(client):
-    response = client.get('admin/Flower', params={'filters[id__gt]': 3})
+    response = client.get('/admin/Flower/json', params={'filters[id__gt]': 3})
     assert response.status_code == 200
     response_json = response.json()
     records = response_json.get('records')
@@ -116,7 +116,7 @@ def test_flower_filter_by_id_gt(client):
 
 
 def test_flower_filter_by_id_lt(client):
-    response = client.get('admin/Flower', params={'filters[id__lt]': 3})
+    response = client.get('/admin/Flower/json', params={'filters[id__lt]': 3})
     assert response.status_code == 200
     response_json = response.json()
     records = response_json.get('records')
@@ -126,7 +126,7 @@ def test_flower_filter_by_id_lt(client):
 
 
 def test_flower_filter_by_id_lte(client):
-    response = client.get('admin/Flower', params={'filters[id__lte]': 3})
+    response = client.get('/admin/Flower/json', params={'filters[id__lte]': 3})
     assert response.status_code == 200
     response_json = response.json()
     records = response_json.get('records')
@@ -136,7 +136,7 @@ def test_flower_filter_by_id_lte(client):
 
 
 def test_flower_filter_by_id_ne(client):
-    response = client.get('admin/Flower', params={'filters[id__ne]': 3})
+    response = client.get('/admin/Flower/json', params={'filters[id__ne]': 3})
     assert response.status_code == 200
     response_json = response.json()
     records = response_json.get('records')
@@ -146,7 +146,7 @@ def test_flower_filter_by_id_ne(client):
 
 
 def test_flower_filter_by_id_eq(client):
-    response = client.get('admin/Flower', params={'filters[id__eq]': 3})
+    response = client.get('/admin/Flower/json', params={'filters[id__eq]': 3})
     assert response.status_code == 200
     response_json = response.json()
     records = response_json.get('records')
