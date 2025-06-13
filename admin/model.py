@@ -146,24 +146,23 @@ class ModelAdminRegistry:
 
     @classmethod
     def register(cls, model: SQLAlchemyModel, model_admin_class: ModelAdmin):
-        cls.admin_model_storage[model] = model_admin_class
+        cls.admin_model_storage[model] = model_admin_class(model)
 
     @classmethod
     def get_instance(cls, model: SQLAlchemyModel) -> ModelAdmin:
-        model_admin_class = cls.admin_model_storage.get(model)
-        if model_admin_class == None:
+        instance = cls.admin_model_storage.get(model)
+        if instance == None:
             raise ValueError(f'model: {model} is not registered in AdminModelRegistry')
-        return model_admin_class(model)
+        return instance
     
     @classmethod
     def get_instance_by(cls, model_class_name: str) -> ModelAdmin:
-        result = tuple([(k, v) for k, v in cls.admin_model_storage.items() if k.__name__ == model_class_name])
+        result = [v for k, v in cls.admin_model_storage.items() if k.__name__ == model_class_name]
         if not result:
             raise ValueError(f'model: {model_class_name} is not registered in AdminModelRegistry')
-        model_class = result[0][0]
-        model_admin_class = result[0][1]
-        return model_admin_class(model_class)
+        model_admin = result[-1]
+        return model_admin
     
     @classmethod
-    def get_all(cls) -> List[SQLAlchemyModel]:
-        return list(cls.admin_model_storage.keys())
+    def get_all(cls) -> List[ModelAdmin]:
+        return list([m for m in cls.admin_model_storage.values()])

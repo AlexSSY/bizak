@@ -136,21 +136,21 @@ class Form(metaclass=FormMeta):
 
     class Meta:
         model: SQLAlchemyModel = None
+        readonly_fields = []
+        fields = '__all__'
+        exclude = []
 
     def _clear_errors(self):
         for field in self.form_fields:
             field.errors.clear()
 
-    def save(self, data: dict[str, Any], session: Session) -> bool:
+    def save(self, data: dict[str, Any], session: Session):
         self.validate(data, session)
-        if not self.valid:
-            return False
         instance = self.Meta.model(**data)
         session.add(instance)
         session.commit()
-        return True
 
-    def validate(self, form_data: dict[str, Any], session: Session) -> dict[str, Any]:
+    def validate(self, form_data: dict[str, Any], session: Session) -> bool:
         self.cleaned_data = {}
         self.valid = True  # Сброс перед валидацией
 
@@ -171,14 +171,14 @@ class Form(metaclass=FormMeta):
 
             self.cleaned_data[field.name] = field_value
         
-        return self.cleaned_data
-
+        return self.valid
 
     def fields_html(self, templating: Jinja2Templates, old_values: dict[str, Any] = {}) -> list[str]:
         fields_html = []
 
         for field in self.form_fields:
-            fields_html.append(field(templating=templating, old_values=old_values))
+            html = field(templating=templating, old_values=old_values)
+            fields_html.append(html)
 
         return fields_html
     

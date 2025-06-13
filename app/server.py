@@ -19,17 +19,19 @@ async def liffespan(app: FastAPI):
 
 app = FastAPI(debug=True, lifespan=liffespan)
 
+
 @app.middleware("http")
 async def add_models_to_request(request: Request, call_next):
     models_sizes = []
-    models = ModelAdminRegistry.get_all()
+    admin_models = ModelAdminRegistry.get_all()
     session = next(get_db())
-    for model in models:
-        size = session.query(model).count()
-        models_sizes.append((model.__name__, size))
+    for amodel in admin_models:
+        size = session.query(amodel.model).count()
+        models_sizes.append((amodel.model.__name__, size))
     request.state.models_sizes = models_sizes
     response = await call_next(request)
     return response
+
 
 def global_context(request: Request) -> dict:
     context = {
@@ -77,8 +79,8 @@ async def create_model(request: Request, model: str, session: Annotated[Session,
     readonly_fields = ['created_at', 'updated_at']
     form = model_to_form(sqlalchemy_model_class, session, readonly_fields)
     form_data = await request.form()
-    form.validate(form_data, session)
-    if form.save(form_data, session):
+    if form.validate(form_data, session):
+        form.save(form_data, session)
         return RedirectResponse(f'/admin/{model}', 301)
     else:
         form_html = await form.render_to_html(request, templating, '/widgets/form.html', action=f'/admin/{model}/')
