@@ -1,5 +1,6 @@
-from admin.form_v2 import Form
-from admin.base_v2 import Field
+from admin.forms_v2 import Form
+from admin.fields_v2 import Field
+from admin.widgets_v2 import Widget
 
 
 def test_form_can_collect_declared_fields():
@@ -34,3 +35,26 @@ def test_form_can_assign_declared_field_name_from_attribute():
     assert TestForm.declared_fields
     assert TestForm.declared_fields['username'].name == 'username'
     assert TestForm.declared_fields['password'].name == 'password'
+
+
+import os
+from fastapi.templating import Jinja2Templates
+CURRENT_PATH = os.path.dirname(__file__)
+templating = Jinja2Templates(os.path.join(CURRENT_PATH, 'templates/test/'))
+
+
+def test_widget_renderable():
+    widget = Widget('widget.html')
+    assert hasattr(widget, 'render')
+
+
+def test_widget_renders_template():
+    widget = Widget('/widget.html')
+    html = widget.render(templating)
+    assert html == '<p>test</p>'
+
+
+def test_widgtet_renders_template_with_context():
+    widget = Widget('/widget_ctx.html')
+    html = widget.render(templating)
+    assert html == '<p>test</p>'

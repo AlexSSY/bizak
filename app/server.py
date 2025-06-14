@@ -46,7 +46,7 @@ templating = Jinja2Templates('app/templates', context_processors=[global_context
 @app.get('/admin/{model}/json')
 def index_json(request: Request, model: str, session: Annotated[Session, Depends(get_db)]):
     model_admin = ModelAdminRegistry.get_instance_by(model)
-    return model_admin.index_view(request=request, session=session)
+    return model_admin.index_view(templating=templating, request=request, session=session)
 
 
 @app.get('/admin/{model}', name='admin-model-index')

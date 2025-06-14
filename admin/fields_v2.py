@@ -1,20 +1,6 @@
 from typing import List, Callable, Optional
 
-
-class Widget:
-    """
-    Задачи:
-    1. Хранение данных касающихся отрисовка поля
-    """
-    def __init__(
-        self,
-        template: str,
-    ):
-        self.template = template
-
-
-class TextWidget(Widget):
-    ...
+from .widgets_v2 import Widget, TextWidget
 
 
 class Field:
@@ -22,7 +8,7 @@ class Field:
     Задачи:
     1. Нормализация
     2. Валидация
-    3. Хранение конекста касающиегося данных
+    3. Хранение контекста касающиегося данных
     """
     def __init__(
         self,
@@ -33,8 +19,14 @@ class Field:
         self.name = name
         self.validators = validators
 
-    def _normalize(self):
+    def normalize(self, value):
         """Нормализирует данные например '  uSeR@mail.COM' -> 'user@mail.com"""
+        return value # тут не нормализируем
 
-    def __str__(self) -> str:
-        return '<doc>Rendred HTML</doc>'
+
+class BoundField:
+    """
+    Предположительно контейнер содержащий данный и Field
+    """
+    def __init__(self, field: Field):
+        self._field = field

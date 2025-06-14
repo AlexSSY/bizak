@@ -2,7 +2,7 @@ from typing import Callable, Any, Optional, Dict, AnyStr
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import DeclarativeBase
 
-from .base_v2 import Field
+from .fields_v2 import Field
 
 
 __all__ = ['BaseForm', 'Form']
@@ -50,16 +50,15 @@ class DeclarativeFormMeta(type):
 
 class BaseForm:
     '''
-    Класс формы (обязанности):
+    Базовый класс формы (обязанности):
     1. только отрисовка
     2. только валидация (не БД)
     '''
 
-    def __init__(self, data: Dict, db: Session):
-        self._data = data
+    def __init__(self, data: Dict):
+        self._data = data.copy()
         self._cleaned_data = {}
         self._errors = {}
-        self._db = db
 
     def is_valid(self) -> bool:
         self.cleaned_data = {}
@@ -69,14 +68,18 @@ class BaseForm:
 
     def validate(self):
         '''
-        Собирает информацию о ошибках перебирая каждое поле и запуская по очереди
+        Собирает информацию об ошибках перебирая каждое поле и запуская по очереди
         их валидаторы. Ошибки сохраняются в self.errors
         '''
+        for _, field in self.declared_fields.items():
+            field_name = field.name
+            field_value = self._data.get(field.name)
 
-        for field in self.declared_fields.items():
+            # Нормализация
+            self._data[field.name] = field.normalize(self._data.get(field.name))
+
+            # Валидация
             for validator in field.validators:
-                field_name = field.name
-                field_value = self.data.get(field.name)
                 try:
                     message = validator(self, field_name, field_value)
                     if message:
