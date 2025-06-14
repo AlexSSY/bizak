@@ -5,6 +5,9 @@ from sqlalchemy.orm import DeclarativeBase
 from .base_v2 import Field
 
 
+__all__ = ['BaseForm', 'Form']
+
+
 SAModel = DeclarativeBase
 
 
@@ -18,6 +21,12 @@ class DeclarativeFormMeta(type):
             for key, value in list(attrs.items())
             if isinstance(value, Field)
         }
+
+        # When `field.name` is none or empty-string - assign field.name attribute from 
+        # attr_name where (attr_name = Field(...))
+        for attr_name, field in attrs['declared_fields'].items():
+            if not field.name:
+                field.name = attr_name
 
         new_class = super().__new__(mcs, name, bases, attrs)
 
