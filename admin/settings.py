@@ -1,6 +1,11 @@
 SETTINGS = {
     'form': {
-        'readonly_fields': ['created_at', 'updated_at']
+        'readonly_fields': ['created_at', 'updated_at'],
+        'widget_classes': {
+            'fallback': 'form-control',
+            'select': 'form-select',
+            'input': 'form-input'
+        }
     }
 }
 

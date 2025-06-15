@@ -5,7 +5,8 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.responses import Response, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from admin.model import ModelAdminRegistry
-from admin.form import Form, model_to_form
+from wtforms import Form
+from admin.utils import form_for_model
 from app import model as app_model
 from app.db import get_db, Base, engine
 from app.form import LoginForm
@@ -62,10 +63,12 @@ async def new(request: Request, model: str, session: Annotated[Session, Depends(
         return templating.TemplateResponse(request, '404.html', {}, 404)
 
     readonly_fields = ['created_at', 'updated_at']
-    form = model_to_form(sqlalchemy_model_class, session, readonly_fields)
-    form_html = await form.render_to_html(request, templating, '/widgets/form.html', action=f'/admin/{model}/')
+    form = form_for_model(sqlalchemy_model_class, Base, session)()
     ctx = {
-        'form': form_html
+        'form': form,
+        'model': model,
+        'method': 'post',
+        'action': f'/admin/{model}/'
     }
     return templating.TemplateResponse(request=request, name='add.html', context=ctx)
 
@@ -77,17 +80,21 @@ async def create_model(request: Request, model: str, session: Annotated[Session,
         return templating.TemplateResponse(request, '404.html', {}, 404)
 
     readonly_fields = ['created_at', 'updated_at']
-    form = model_to_form(sqlalchemy_model_class, session, readonly_fields)
     form_data = await request.form()
-    if form.validate(form_data, session):
-        form.save(form_data, session)
+    form = form_for_model(sqlalchemy_model_class, Base, session)(formdata=form_data)
+    if form.validate():
+        instance = sqlalchemy_model_class(**form.data)
+        session.add(instance)
+        session.commit()
         return RedirectResponse(f'/admin/{model}', 301)
     else:
-        form_html = await form.render_to_html(request, templating, '/widgets/form.html', action=f'/admin/{model}/')
         ctx = {
-            'form': form_html
+            'form': form,
+            'model': model,
+            'method': 'post',
+            'action': f'/admin/{model}/'
         }
-        return templating.TemplateResponse(request=request, name='add.html', context=ctx)
+        return templating.TemplateResponse(request=request, name='add.html', context=ctx, status_code=400)
 
 
 @app.get('/admin/')
