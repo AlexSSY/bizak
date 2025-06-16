@@ -22,8 +22,11 @@
                   {% for value in record %}
                   <td {% if loop.index0 > 0 > 0 %}class="text-secondary"{% endif %}>{{ value }}</td>
                   {% endfor %}
-                  <td>
+                  <td class="d-flex gap-3">
                     <a href="#">Edit</a>
+                    <div>
+                      <a href="#" class="text-danger" hx-delete="/admin/{{ model }}/{{ record[0] }}/">Del</a>
+                    </div>
                   </td>
                 </tr>
                 {% endfor %}
