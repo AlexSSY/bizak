@@ -146,3 +146,12 @@ async def create_model(request: Request, model: str, session: Annotated[Session,
 @app.get('/admin/')
 def main(session: Annotated[Session, Depends(get_db)]):
     return 'PLEASE FOLLOW DEEPLINK'
+
+
+@app.delete('/admin/{model_name}/')
+def delete(
+    request: Request,
+    model_name: str,
+    session: Annotated[Session, Depends(get_db)]
+):
+    pass
