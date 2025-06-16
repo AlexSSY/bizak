@@ -63,6 +63,7 @@ class AdminForm(Form):
         success = super().validate()
 
         # * Добавим invalid-class к полям у которых есть ошибка валидации
+        # * При этом сохраняем уже имеющиеся классы
         for field in self._fields.values():
             if field.errors:
                 current_class = field.render_kw.get("class", "")

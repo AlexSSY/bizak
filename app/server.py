@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from typing import Annotated, Any, Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, ColumnProperty
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import Response, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -12,11 +12,47 @@ from app.db import get_db, Base, engine
 from app.form import LoginForm
 from wtforms_sqlalchemy.orm import model_form
 from wtforms_alchemy import ModelForm
+from wtforms_sqlalchemy.orm import ModelConverter
+from wtforms.validators import ValidationError, StopValidation
 
+class Unique:
+    def __init__(self, model, field, session, message="Must be unique"):
+        self.model = model
+        self.field = field
+        self.session = session
+        self.message = message
 
-class PostForm(ModelForm):
-    class Meta:
-        model = app_model.Post
+    def __call__(self, form, field):
+        query = self.session.query(self.model).filter(getattr(self.model, self.field) == field.data)
+
+        # При редактировании — не считаем текущий объект за дубликат
+        if hasattr(form, 'obj'):
+            existing_value = getattr(form.obj, self.field, None)
+            if existing_value == field.data:
+                return
+
+        if query.first():
+            raise StopValidation(self.message)
+
+class MyModelConverter(ModelConverter):
+    def convert(self, model, mapper, prop, field_args, db_session=None):
+        if not field_args:
+            field_args = {}
+        render_kw = field_args.setdefault("render_kw", {})
+        render_kw.setdefault("class", "form-control")
+
+        field = super().convert(model, mapper, prop, field_args, db_session=db_session)
+
+        if isinstance(prop, ColumnProperty):
+            column = prop.columns[0]
+
+            if getattr(column, 'unique', False):
+                validators = field.kwargs.get('validators', [])
+                if not any(isinstance(v, Unique) for v in validators):
+                    validators.insert(0, Unique(model=model, field=column.name, session=db_session))
+                    field.kwargs['validators'] = validators
+
+        return field
 
 
 @asynccontextmanager
@@ -71,8 +107,8 @@ async def new(request: Request, model: str, session: Annotated[Session, Depends(
 
     readonly_fields = ['created_at', 'updated_at']
     # form = form_for_model(sqlalchemy_model_class, Base, session)()
-    form = model_form(sqlalchemy_model_class, session, AdminForm, exclude=readonly_fields)()
-    form = PostForm()
+    form = model_form(sqlalchemy_model_class, session, AdminForm, converter=MyModelConverter(), exclude=readonly_fields)()
+    # form = PostForm()
     ctx = {
         'form': form,
         'model': model,
@@ -91,7 +127,7 @@ async def create_model(request: Request, model: str, session: Annotated[Session,
     readonly_fields = ['created_at', 'updated_at']
     form_data = await request.form()
     # form = form_for_model(sqlalchemy_model_class, Base, session)(f)
-    form = model_form(sqlalchemy_model_class, session, AdminForm, exclude=readonly_fields)(formdata=form_data)
+    form = model_form(sqlalchemy_model_class, session, AdminForm, converter=MyModelConverter(), exclude=readonly_fields)(formdata=form_data)
     if form.validate():
         instance = sqlalchemy_model_class(**form.data)
         session.add(instance)
