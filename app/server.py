@@ -6,10 +6,11 @@ from fastapi.responses import Response, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from admin.model import ModelAdminRegistry
 from wtforms import Form
-from admin.utils import form_for_model
+from admin.utils import form_for_model, AdminForm
 from app import model as app_model
 from app.db import get_db, Base, engine
 from app.form import LoginForm
+from wtforms_sqlalchemy.orm import model_form
 
 
 @asynccontextmanager
@@ -63,7 +64,8 @@ async def new(request: Request, model: str, session: Annotated[Session, Depends(
         return templating.TemplateResponse(request, '404.html', {}, 404)
 
     readonly_fields = ['created_at', 'updated_at']
-    form = form_for_model(sqlalchemy_model_class, Base, session)()
+    # form = form_for_model(sqlalchemy_model_class, Base, session)()
+    form = model_form(sqlalchemy_model_class, session, AdminForm, exclude=readonly_fields)()
     ctx = {
         'form': form,
         'model': model,
@@ -81,7 +83,8 @@ async def create_model(request: Request, model: str, session: Annotated[Session,
 
     readonly_fields = ['created_at', 'updated_at']
     form_data = await request.form()
-    form = form_for_model(sqlalchemy_model_class, Base, session)(formdata=form_data)
+    # form = form_for_model(sqlalchemy_model_class, Base, session)(f)
+    form = model_form(sqlalchemy_model_class, session, AdminForm, exclude=readonly_fields)(formdata=form_data)
     if form.validate():
         instance = sqlalchemy_model_class(**form.data)
         session.add(instance)

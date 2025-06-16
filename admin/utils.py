@@ -6,6 +6,9 @@ from fastapi.responses import RedirectResponse
 from wtforms import Form, ValidationError, validators, StringField, IntegerField, SelectField
 from sqlalchemy import Column, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import Mapper, DeclarativeBase, Session, DeclarativeMeta
+from wtforms_sqlalchemy.orm import ModelConverter
+
+from . import settings
 
 
 def Unique(model, field_name: str, session_getter):
@@ -50,7 +53,26 @@ def nullable_int(val):
     return int(val) if val not in ("", None) else None
 
 
-def form_for_model(model: Type[DeclarativeBase], base: DeclarativeMeta, session: Session) -> Type[Form]:
+class AdminForm(Form):
+    """Кастомная форма"""
+
+    class Meta:
+        model = None
+
+    def validate(self):
+        success = super().validate()
+
+        # * Добавим invalid-class к полям у которых есть ошибка валидации
+        for field in self._fields.values():
+            if field.errors:
+                current_class = field.render_kw.get("class", "")
+                invalid_class = settings.get_setting('form', 'invalid_class')
+                field.render_kw["class"] = f"{current_class} {invalid_class}".strip()
+
+        return success
+
+
+def form_for_model(model: Type[DeclarativeBase], base: DeclarativeMeta, session: Session) -> Type[AdminForm]:
     mapper: Mapper = model.__mapper__
     fields = {}
 
@@ -74,7 +96,12 @@ def form_for_model(model: Type[DeclarativeBase], base: DeclarativeMeta, session:
         if isinstance(type_, String):
             if type_.length:
                 _validators.append(validators.Length(max=type_.length))
-            fields[name] = StringField(name.capitalize(), validators=_validators)
+
+            fields[name] = StringField(
+                name.capitalize(),
+                validators=_validators,
+                render_kw={'class': 'form-control'}
+            )
 
         elif isinstance(type_, Integer):
             fk = next(iter(column.foreign_keys), None)
@@ -88,10 +115,11 @@ def form_for_model(model: Type[DeclarativeBase], base: DeclarativeMeta, session:
                 rows = session.query(target_model).all()
                 choices = [('', '---')] + [(getattr(row, fk.column.name), str(row)) for row in rows]
 
-                fields[name] = SelectField(name.capitalize(), choices=choices, coerce=nullable_int, validators=_validators)
+                fields[name] = SelectField(name.capitalize(), choices=choices, coerce=nullable_int, 
+                                           validators=_validators, render_kw={'class': 'form-select'})
             else:
-                fields[name] = IntegerField(name.capitalize(), validators=_validators)
+                fields[name] = IntegerField(name.capitalize(), validators=_validators, render_kw={'class': 'form-control'})
 
         # * Можно добавить больше типов (Boolean, Float и т.д.)
 
-    return type(f"{model.__name__}Form", (Form,), fields)
+    return type(f"{model.__name__}AdminForm", (AdminForm,), fields)

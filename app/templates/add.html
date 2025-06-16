@@ -13,8 +13,7 @@
             {{ field.label }}
           </div>
           <div class="col">
-            {% set classes = 'form-control is-invalid' if field.errors else 'form-control' %}
-            {{ field(class=classes) }}
+            {{ field() }}
             {% for error in field.errors %}
               <div class="invalid-feedback">{{ error }}</div>
             {% endfor %}

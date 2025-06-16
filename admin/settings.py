@@ -5,7 +5,8 @@ SETTINGS = {
             'fallback': 'form-control',
             'select': 'form-select',
             'input': 'form-input'
-        }
+        },
+        'invalid_class': 'is-invalid',
     }
 }
 
