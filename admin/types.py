@@ -1,4 +1,5 @@
+from typing import TypeAlias
 from sqlalchemy.orm import DeclarativeMeta
 
 
-SQLAlchemyModel = DeclarativeMeta
+SQLAlchemyModel: TypeAlias = DeclarativeMeta

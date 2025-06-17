@@ -18,14 +18,24 @@
               </thead>
               <tbody>
                 {% for record in records %}
-                <tr>
+                <tr id="record_{{ record.ids }}">
                   {% for value in record %}
                   <td {% if loop.index0 > 0 > 0 %}class="text-secondary"{% endif %}>{{ value }}</td>
                   {% endfor %}
-                  <td class="d-flex gap-3">
-                    <a href="#">Edit</a>
-                    <div>
-                      <a href="#" class="text-danger" hx-delete="/admin/{{ model }}/{{ record[0] }}/">Del</a>
+                  <td>
+                    <div class="d-flex gap-2">
+                      <a href="/admin/{{ model }}/edit">Edit</a>
+                      <div>
+                        <a 
+                          href="#"
+                          class="text-danger"
+                          hx-vals='{{ record.pks }}'
+                          hx-post="/admin/{{ model }}/delete/"
+                          hx-target="#record_{{ record.ids }}"
+                          hx-swap="outerHTML swap:1s"
+                          hx-on::after-request="if (!event.detail.successful) alert(event.detail.xhr.responseText);"
+                        >Del</a>
+                      </div>
                     </div>
                   </td>
                 </tr>

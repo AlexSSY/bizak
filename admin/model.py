@@ -1,14 +1,19 @@
 from types import MethodType
-from typing import List
+from typing import Dict, List, Tuple, Type
 from sqlalchemy import inspect
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 import functools
+import json
 
 from .types import SQLAlchemyModel
 from .index_list import index_list, parse_filters
+
+
+class RecordValues(list):
+    ...
 
 
 class ModelAdmin:
@@ -113,11 +118,13 @@ class ModelAdmin:
             order_type=order_type,
             filters=filters
         )
-        records = []
+        records = list()
         for db_record in db_records:
-            values = []
+            values = RecordValues()
             for display_method in display_methods:
                 values.append(display_method(db_record))
+            setattr(values, 'ids', f'{db_record.id}')
+            setattr(values, 'pks', json.dumps({'id': db_record.id}))
             records.append(values)
 
         context= {
@@ -125,6 +132,7 @@ class ModelAdmin:
             'records': records,
             'model': self.model.__name__.capitalize()
         }
+
         return templating.TemplateResponse(request, 'records.html', context)
 
 
@@ -139,30 +147,3 @@ def display(**parameters):
             return fn(*args, **kwargs)
         return wrapper
     return decorator
-
-
-class ModelAdminRegistry:
-    admin_model_storage: dict[SQLAlchemyModel, ModelAdmin] = dict()
-
-    @classmethod
-    def register(cls, model: SQLAlchemyModel, model_admin_class: ModelAdmin):
-        cls.admin_model_storage[model] = model_admin_class(model)
-
-    @classmethod
-    def get_instance(cls, model: SQLAlchemyModel) -> ModelAdmin:
-        instance = cls.admin_model_storage.get(model)
-        if instance == None:
-            raise ValueError(f'model: {model} is not registered in AdminModelRegistry')
-        return instance
-    
-    @classmethod
-    def get_instance_by(cls, model_class_name: str) -> ModelAdmin:
-        result = [v for k, v in cls.admin_model_storage.items() if k.__name__ == model_class_name]
-        if not result:
-            raise ValueError(f'model: {model_class_name} is not registered in AdminModelRegistry')
-        model_admin = result[-1]
-        return model_admin
-    
-    @classmethod
-    def get_all(cls) -> List[ModelAdmin]:
-        return list([m for m in cls.admin_model_storage.values()])

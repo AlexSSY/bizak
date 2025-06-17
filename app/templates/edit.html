@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<div class="col-12 p-4">
+  <form class="card" action="{{ action }}" method="{{ method }}">
+    <div class="card-header">
+      <h3 class="card-title">{{ title }}</h3>
+    </div>
+    <div class="card-body">
+      {% for field in form %}
+        <div class="mb-3 row">
+          <div class="col-3">
+            {{ field.label }}
+          </div>
+          <div class="col">
+            {{ field() }}
+            {% for error in field.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+            {# help text here #}
+          </div>
+        </div>
+      {% endfor %}
+      <div class="text-end">
+        <a href="{{ request.url_for('admin-model-index', model=model) }}" class="btn">Back</a>
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

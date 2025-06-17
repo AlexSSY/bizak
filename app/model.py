@@ -1,7 +1,8 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
-from admin.model import ModelAdmin, ModelAdminRegistry, display
+from admin.model import ModelAdmin, display
+from admin import site
 
 from .db import Base, get_db
 
@@ -24,6 +25,7 @@ class User(Base):
 
 class Post(Base, TimestampMixin):
     __tablename__ = 'posts'
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(length=100), unique=True)
     body = Column(Text)
@@ -33,6 +35,7 @@ class Post(Base, TimestampMixin):
 
 class Comment(Base, TimestampMixin):
     __tablename__ = 'comments'
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(length=100), unique=True)
     body = Column(Text)
@@ -74,6 +77,6 @@ class PostAdmin(ModelAdmin):
         return obj.author
 
 
-ModelAdminRegistry.register(User, UserAdmin)
-ModelAdminRegistry.register(Flower, FlowerAdmin)
-ModelAdminRegistry.register(Post, PostAdmin)
+site.register(User, UserAdmin)
+site.register(Flower, FlowerAdmin)
+site.register(Post, PostAdmin)

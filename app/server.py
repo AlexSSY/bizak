@@ -1,10 +1,10 @@
 from contextlib import asynccontextmanager
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any, Optional, Type
 from sqlalchemy.orm import Session, ColumnProperty
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import Response, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from admin.model import ModelAdminRegistry
+from admin import site
 from wtforms import Form
 from admin.utils import form_for_model, AdminForm
 from app import model as app_model
@@ -14,6 +14,9 @@ from wtforms_sqlalchemy.orm import model_form
 from wtforms_alchemy import ModelForm
 from wtforms_sqlalchemy.orm import ModelConverter
 from wtforms.validators import ValidationError, StopValidation
+from app import crud
+from admin.types import SQLAlchemyModel
+
 
 class Unique:
     def __init__(self, model, field, session, message="Must be unique"):
@@ -33,6 +36,7 @@ class Unique:
 
         if query.first():
             raise StopValidation(self.message)
+
 
 class MyModelConverter(ModelConverter):
     def convert(self, model, mapper, prop, field_args, db_session=None):
@@ -67,7 +71,7 @@ app = FastAPI(debug=True, lifespan=liffespan)
 @app.middleware("http")
 async def add_models_to_request(request: Request, call_next):
     models_sizes = []
-    admin_models = ModelAdminRegistry.get_all()
+    admin_models = site.get_all_sqlalchemy_models()
     session = next(get_db())
     for amodel in admin_models:
         size = session.query(amodel.model).count()
@@ -77,25 +81,30 @@ async def add_models_to_request(request: Request, call_next):
     return response
 
 
-def global_context(request: Request) -> dict:
+def global_context_processor(request: Request) -> dict:
     context = {
         "site_name": "MyApp",
         "models_sizes": getattr(request.state, "models_sizes", None),
     }
     return context
 
-templating = Jinja2Templates('app/templates', context_processors=[global_context])
+
+templating = Jinja2Templates('app/templates', context_processors=[global_context_processor])
+
+
+def get_model_class(model_class_name: str) -> Type[SQLAlchemyModel]:
+    return getattr(app_model, model_class_name.capitalize(), None)
 
 
 @app.get('/admin/{model}/json')
 def index_json(request: Request, model: str, session: Annotated[Session, Depends(get_db)]):
-    model_admin = ModelAdminRegistry.get_instance_by(model)
+    model_admin = site.get_instance_by(model)
     return model_admin.index_view(templating=templating, request=request, session=session)
 
 
 @app.get('/admin/{model}', name='admin-model-index')
 def index(request: Request, model: str, session: Annotated[Session, Depends(get_db)]):
-    model_admin = ModelAdminRegistry.get_instance_by(model)
+    model_admin = site.get_instance_by(model)
     return model_admin.index_view(templating, request, session)
 
 
@@ -148,10 +157,50 @@ def main(session: Annotated[Session, Depends(get_db)]):
     return 'PLEASE FOLLOW DEEPLINK'
 
 
-@app.delete('/admin/{model_name}/')
-def delete(
+@app.post('/admin/{model_name}/delete/')
+async def delete(
     request: Request,
     model_name: str,
     session: Annotated[Session, Depends(get_db)]
 ):
-    pass
+    form_data = await request.form()
+    sqlalchemy_model_class = getattr(app_model, model_name.capitalize(), None)
+    pk_values = list([v for _, v in form_data.items()])
+    result: crud.DeleteResult = crud.delete_by_pk(sqlalchemy_model_class, pk_values, session)
+
+    if result.get('success'):
+        return Response(content='', status_code=200)
+    return Response(content=result.get('reason'), status_code=400)
+
+
+@app.get('/admin/{model_name}/{}/edit')
+async def edit(
+    request: Request,
+    model_name: str,
+    session: Annotated[Session, Depends(get_db)]
+):
+    sqlalchemy_model_class = getattr(app_model, model_name.capitalize(), None)
+    if sqlalchemy_model_class == None:
+        return templating.TemplateResponse(request, '404.html', {}, 404)
+
+    readonly_fields = ['created_at', 'updated_at']
+    # form = form_for_model(sqlalchemy_model_class, Base, session)()
+    form_data = await request.form()
+    form = model_form(sqlalchemy_model_class, session, AdminForm, converter=MyModelConverter(), exclude=readonly_fields)(formdata=form_data)
+    # form = PostForm()
+    ctx = {
+        'form': form,
+        'model': model_name,
+        'method': 'post',
+        'action': f'/admin/{model_name}/update/'
+    }
+    return templating.TemplateResponse(request=request, name='add.html', context=ctx)
+
+
+@app.post('/admin/{model_name}/update/')
+async def update(
+    request: Request,
+    model_name: str,
+    session: Annotated[Session, Depends(get_db)]
+):
+    return None
