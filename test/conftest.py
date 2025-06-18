@@ -1,4 +1,3 @@
-import os
 import pytest
 from sqlalchemy.orm import Session
 from fastapi.testclient import TestClient
@@ -9,13 +8,6 @@ from app.server import app
 
 
 def db_prep():
-    # db_file_path  = DB_FILE_NAME
-    
-    # if os.path.exists(db_file_path):
-    #     os.remove(db_file_path)
-
-    # Base.metadata.create_all(bind=engine)
-
     with SessionLocal() as session:
         # 12 records
         session.add(Flower(name='Роза', color='красный'))

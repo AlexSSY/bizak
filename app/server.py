@@ -18,6 +18,11 @@ from app import crud
 from admin.types import SQLAlchemyModel
 
 
+site.register(app_model.User, app_model.UserAdmin)
+site.register(app_model.Flower, app_model.FlowerAdmin)
+site.register(app_model.Post, app_model.PostAdmin)
+
+
 class Unique:
     def __init__(self, model, field, session, message="Must be unique"):
         self.model = model
@@ -70,12 +75,16 @@ app = FastAPI(debug=True, lifespan=liffespan)
 
 @app.middleware("http")
 async def add_models_to_request(request: Request, call_next):
+    """
+    Добавляет в [response.state] аттрибут-массив [models_sizes]
+    каждый элемент которого содержит название модели и к-во зарисей
+    """
     models_sizes = []
-    admin_models = site.get_all_sqlalchemy_models()
+    models = site.get_all_sqlalchemy_models()
     session = next(get_db())
-    for amodel in admin_models:
-        size = session.query(amodel.model).count()
-        models_sizes.append((amodel.model.__name__, size))
+    for model in models:
+        size = session.query(model).count()
+        models_sizes.append((model.__name__, size))
     request.state.models_sizes = models_sizes
     response = await call_next(request)
     return response
@@ -96,15 +105,12 @@ def get_model_class(model_class_name: str) -> Type[SQLAlchemyModel]:
     return getattr(app_model, model_class_name.capitalize(), None)
 
 
-@app.get('/admin/{model}/json')
-def index_json(request: Request, model: str, session: Annotated[Session, Depends(get_db)]):
-    model_admin = site.get_instance_by(model)
-    return model_admin.index_view(templating=templating, request=request, session=session)
-
-
-@app.get('/admin/{model}', name='admin-model-index')
-def index(request: Request, model: str, session: Annotated[Session, Depends(get_db)]):
-    model_admin = site.get_instance_by(model)
+@app.get('/admin/{model_name}', name='admin-model-index')
+def index(request: Request, model_name: str, session: Annotated[Session, Depends(get_db)]):
+    """
+    Точка входа для спска записей модели
+    """
+    model_admin = site.get_model_admin_instance(model_name)
     return model_admin.index_view(templating, request, session)
 
 

@@ -75,8 +75,3 @@ class PostAdmin(ModelAdmin):
     @display(display='Author')
     def get_user_id_display(self, obj):
         return obj.author
-
-
-site.register(User, UserAdmin)
-site.register(Flower, FlowerAdmin)
-site.register(Post, PostAdmin)

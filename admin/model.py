@@ -68,6 +68,11 @@ class ModelAdmin:
 
 
     def _display_methods(self):
+        """
+        Формирует:
+        Методы возвращающий значание для колонки (Column) +
+        описание некоторых свойств отобрадения
+        """
         display_methods = []
         sql_columns = self._sql_columns()
         display_columns = self._display_columns()
@@ -137,6 +142,7 @@ class ModelAdmin:
 
 
 def display(**parameters):
+    """Decorator for custom fields"""
     def decorator(fn):
         # Назначаем кастомные атрибуты функции
         for key, val in parameters.items():
