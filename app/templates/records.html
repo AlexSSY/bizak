@@ -65,7 +65,7 @@
                 {% for name, size in models_sizes %}
                 <tr>
                   <td>
-                    <a href="{{ request.url_for('admin-model-index', model=name) }}">{{ name }}</a>
+                    <a href="{{ request.url_for('admin-model-index', model_name=name) }}">{{ name }}</a>
                   </td>
                   <td class="w-1 fw-bold text-end">
                     {{ size }}

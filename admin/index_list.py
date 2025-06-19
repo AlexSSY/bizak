@@ -38,7 +38,9 @@ def index_list(
     order_type: Optional[str] = None,
     filters: Optional[Dict[str, Any]] = None  # 👈 фильтры по полям
 ) -> list:
-    """Retrieve records from DB to template context."""
+    """
+    Уиверсальная функция для отфильтровки и получения данных из БД
+    """
     
     query = queryset
 

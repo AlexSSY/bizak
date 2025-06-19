@@ -18,7 +18,8 @@ instances: Dict[str, ModelAdmin] = dict()
 
 def register(model_class: SQLAlchemyModel, model_admin_class: ModelAdmin):
     """
-    Регистрирует модель алхимии 
+    Регистрирует модель алхимии
+
     :param model_class: Класс модели DeclarativeBase
     :param model_admin_class: Класс модели ModelAdmin
     """
@@ -58,3 +59,20 @@ def get_all_sqlalchemy_models() -> List[Type[SQLAlchemyModel]]:
 # def get_sqlalchemy_model_class_by(name: str) -> Type[SQLAlchemyModel]:
 #     name = name.lower()
 #     return next(filter(lambda x: x.__name__.lower() == name, admin_model_storage.keys()))
+
+
+from sqlalchemy import Engine
+from fastapi import FastAPI
+
+
+class AdminSite:
+    def __init__(self, app: FastAPI, engine: Engine, prefix: str = '/admin'):
+        self._main_app = app
+        self._app = FastAPI()
+        self.engine = engine
+
+    def register_admin_model(self, model_admin: ModelAdmin):
+        ...
+
+    def register_route(self, callback, path):
+        self._app.add_route(path, callback)

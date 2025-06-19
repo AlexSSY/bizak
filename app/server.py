@@ -16,52 +16,12 @@ from wtforms_sqlalchemy.orm import ModelConverter
 from wtforms.validators import ValidationError, StopValidation
 from app import crud
 from admin.types import SQLAlchemyModel
+from admin.validators import Unique
 
 
 site.register(app_model.User, app_model.UserAdmin)
 site.register(app_model.Flower, app_model.FlowerAdmin)
 site.register(app_model.Post, app_model.PostAdmin)
-
-
-class Unique:
-    def __init__(self, model, field, session, message="Must be unique"):
-        self.model = model
-        self.field = field
-        self.session = session
-        self.message = message
-
-    def __call__(self, form, field):
-        query = self.session.query(self.model).filter(getattr(self.model, self.field) == field.data)
-
-        # При редактировании — не считаем текущий объект за дубликат
-        if hasattr(form, 'obj'):
-            existing_value = getattr(form.obj, self.field, None)
-            if existing_value == field.data:
-                return
-
-        if query.first():
-            raise StopValidation(self.message)
-
-
-class MyModelConverter(ModelConverter):
-    def convert(self, model, mapper, prop, field_args, db_session=None):
-        if not field_args:
-            field_args = {}
-        render_kw = field_args.setdefault("render_kw", {})
-        render_kw.setdefault("class", "form-control")
-
-        field = super().convert(model, mapper, prop, field_args, db_session=db_session)
-
-        if isinstance(prop, ColumnProperty):
-            column = prop.columns[0]
-
-            if getattr(column, 'unique', False):
-                validators = field.kwargs.get('validators', [])
-                if not any(isinstance(v, Unique) for v in validators):
-                    validators.insert(0, Unique(model=model, field=column.name, session=db_session))
-                    field.kwargs['validators'] = validators
-
-        return field
 
 
 @asynccontextmanager
@@ -179,10 +139,11 @@ async def delete(
     return Response(content=result.get('reason'), status_code=400)
 
 
-@app.get('/admin/{model_name}/{}/edit')
+@app.get('/admin/{model_name}/{id}/edit')
 async def edit(
     request: Request,
     model_name: str,
+    id: int,
     session: Annotated[Session, Depends(get_db)]
 ):
     sqlalchemy_model_class = getattr(app_model, model_name.capitalize(), None)
@@ -203,10 +164,11 @@ async def edit(
     return templating.TemplateResponse(request=request, name='add.html', context=ctx)
 
 
-@app.post('/admin/{model_name}/update/')
+@app.post('/admin/{model_name}/{id}/update/')
 async def update(
     request: Request,
     model_name: str,
+    id: int,
     session: Annotated[Session, Depends(get_db)]
 ):
     return None

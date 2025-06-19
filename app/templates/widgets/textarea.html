@@ -1,9 +1,0 @@
-<textarea
-  class="form-control {{ class_ }}{% if errors %} is-invalid{% endif %}"
-  type="{{ type }}"
-  name="{{ name }}"
-  rows="{{ rows }}"
-  id="{{ name }}"
-  {% if required %}required{% endif %}
-  {% if errors %}aria-describedby="inputGroupPrepend3 validation{{ name }}Feedback"{% endif %}
->{% if old_value and shared %}{{ old_values[name] }}{% endif %}</textarea>

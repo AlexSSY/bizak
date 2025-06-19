@@ -8,8 +8,7 @@ class LoginForm(Form):
     password = PasswordField(label="password")
     textarea = StringField(label="textarea")
     checkbox = BooleanField(label='checkbox')
-    switcher = BooleanField(label='switcher',
-                            input_template='/widgets/toggle.html')
+    switcher = BooleanField(label='switcher')
     select = SelectField(label='select',
                          choices=[(1, 'Easy'), (2, 'Medium'), (3, 'Hard')],
                          coerce=int)
